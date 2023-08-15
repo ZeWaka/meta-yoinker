@@ -1,9 +1,9 @@
 [package]
-name = "eframe_template"
+name = "dmi-meta-web"
 version = "0.1.0"
-authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
+authors = ["ZeWaka <zewakagamer@gmail.com>"]
 edition = "2021"
-rust-version = "1.65"
+rust-version = "1.71"
 
 
 [dependencies]
