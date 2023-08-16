@@ -1,4 +1,4 @@
-#![warn(clippy::all, rust_2018_idioms)]
+#![warn(clippy::all, clippy::nursery, clippy::cargo)]
 
 mod app;
-pub use app::MetadataApp;
+pub use app::MetadataTool;

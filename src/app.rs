@@ -2,28 +2,28 @@ use egui::{vec2, FontFamily, FontId, RichText, TextStyle};
 use egui_extras::RetainedImage;
 use std::io::Cursor;
 
-pub struct MetadataApp {
+pub struct MetadataTool {
 	img: Option<RetainedImage>,
-	img_offset: egui::Pos2,
-	dropped_files: Vec<egui::DroppedFile>,
+	img_metadata: Option<dmi::ztxt::RawZtxtChunk>,
 	image_info: Option<FileInfo>,
-
 	available_height: f32,
 	available_width: f32,
+	img_offset: egui::Pos2,
+	dropped_files: Vec<egui::DroppedFile>,
 }
 
 #[derive(Default)]
 struct FileInfo {
 	name: String,
 	path: String,
-	extension: String,
 	bytes: usize,
 }
 
-impl Default for MetadataApp {
+impl Default for MetadataTool {
 	fn default() -> Self {
 		Self {
 			img: None,
+			img_metadata: None,
 			image_info: None,
 			available_height: 0.0,
 			available_width: 0.0,
@@ -39,8 +39,6 @@ fn configure_text_styles(ctx: &egui::Context) {
 	let mut style = (*ctx.style()).clone();
 	style.text_styles = [
 		(TextStyle::Heading, FontId::new(25.0, Proportional)),
-		(heading2(), FontId::new(22.0, Proportional)),
-		(heading3(), FontId::new(19.0, Proportional)),
 		(TextStyle::Body, FontId::new(16.0, Proportional)),
 		(TextStyle::Monospace, FontId::new(12.0, Monospace)),
 		(TextStyle::Button, FontId::new(12.0, Proportional)),
@@ -50,27 +48,18 @@ fn configure_text_styles(ctx: &egui::Context) {
 	ctx.set_style(style);
 }
 
-#[inline]
-fn heading2() -> TextStyle {
-	TextStyle::Name("Heading2".into())
-}
-
-#[inline]
-fn heading3() -> TextStyle {
-	TextStyle::Name("ContextHeading".into())
-}
-
-impl MetadataApp {
+impl MetadataTool {
 	/// Called once before the first frame.
+	#[must_use]
 	pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
 		// This is also where you can customize the look and feel of egui using
 		// `cc.egui_ctx.set_visuals` and `cc.egui_ctx.set_fonts`.
 		configure_text_styles(&cc.egui_ctx);
-		Default::default()
+		Self::default()
 	}
 
-	fn preview_files_being_dropped(&mut self, ctx: &egui::Context) {
-		use egui::*;
+	fn preview_files_being_dropped(ctx: &egui::Context) {
+		use egui::{Align2, Color32, Id, LayerId, Order};
 
 		// Preview hovering files:
 		if ctx.input(|i| i.raw.hovered_files.is_empty()) {
@@ -84,7 +73,7 @@ impl MetadataApp {
 				} else if !file.mime.is_empty() {
 					text += &format!("\n{}", file.mime);
 				} else {
-					text += "\n???";
+					text += "\nImage";
 				}
 			}
 			text
@@ -104,7 +93,7 @@ impl MetadataApp {
 		);
 	}
 
-	fn load_file_or_err(&mut self, ui: &mut egui::Ui) {
+	fn load_files_or_err(&mut self, ui: &mut egui::Ui) {
 		if !self.dropped_files.is_empty() {
 			ui.group(|ui| {
 				ui.label("Dropped files:");
@@ -112,19 +101,19 @@ impl MetadataApp {
 				for file in &self.dropped_files {
 					let mut info = FileInfo::default();
 					if let Some(path) = &file.path {
-						info.path = path.display().to_string()
+						info.path = path.display().to_string();
 					} else if !file.name.is_empty() {
-						let filesplit: Vec<&str> = file.name.split('.').collect(); // yes i know this is terrible
-						info.name = filesplit[0].to_owned();
-						info.extension = filesplit[1].to_owned();
+						info.name = file.name.clone();
 					} else {
-						info.name = "???".to_owned()
+						info.name = "???".to_owned();
 					};
+
 					if let Some(bytes) = &file.bytes {
 						info.bytes = bytes.len();
 						if self.img.is_none() {
 							let mut buffer: Vec<u8> = Vec::new();
 							let mut writer = Cursor::new(&mut buffer);
+							let bytes_reader = Cursor::new(bytes);
 
 							let mut i = match image::load_from_memory_with_format(
 								bytes,
@@ -140,17 +129,21 @@ impl MetadataApp {
 								}
 							};
 
+							if let Ok(raw_dmi) = dmi::RawDmi::load(bytes_reader) {
+								if let Some(metadata) = raw_dmi.chunk_ztxt {
+									self.img_metadata = Some(metadata);
+								}
+							}
+
 							let h = (self.available_height - 10.0) as u32;
 							let w = (self.available_width - 10.0) as u32;
 
-							ui.heading(format!("height {}", h));
-							i = i.resize(w, w, image::imageops::FilterType::Nearest);
+							i = i.resize(w, h, image::imageops::FilterType::Nearest);
 							i.write_to(&mut writer, image::ImageFormat::Png).unwrap();
 
 							self.img = None;
 							self.img =
 								Some(RetainedImage::from_image_bytes("img", &buffer).unwrap());
-
 							self.image_info = Some(info);
 						}
 					} else {
@@ -166,7 +159,7 @@ impl MetadataApp {
 			ui.heading("DMI Metadata Tool");
 
 			// Show dropped files (if any):
-			self.load_file_or_err(ui);
+			self.load_files_or_err(ui);
 
 			// Clean the dropped files list as soon as we have an image. Needed to reload a new, future image.
 			if self.img.is_some() {
@@ -201,34 +194,32 @@ impl MetadataApp {
 
 	fn create_image_preview(&mut self, ctx: &egui::Context) {
 		egui::CentralPanel::default().show(ctx, |ui| {
+			let image_height = ui.available_height() * 0.70; // image takes up 70% of the height at max
+			ui.allocate_ui_with_layout( vec2(ui.available_width(), image_height), egui::Layout::top_down(egui::Align::LEFT), |ui| {
+				// Get available space for the image
+				self.img_offset = ui.cursor().left_top();
+				self.available_height = ui.available_height();
+				self.available_width = ui.available_width();
 
-            let image_height = ui.available_height() * 0.70; // image takes up 70% of the height at max
-            ui.allocate_ui_with_layout( vec2(ui.available_width(), image_height), egui::Layout::top_down(egui::Align::LEFT), |ui| {
-                // Get available space for the image
-                self.img_offset = ui.cursor().left_top();
-                self.available_height = ui.available_height();
-                self.available_width = ui.available_width();
-
-                match &self.img {
-                    Some(i) => ui.image(i.texture_id(ctx), i.size_vec2()), // Preview
-                    _ => {
-                        ui.centered_and_justified(|ui| {
-                            ui.heading(RichText::new("Drop file here").strong())
-                        })
-                        .response
-                    } // No image
-                };
-                ui.add(egui::Separator::default().grow(8.0));
-                ui.label("Sed tincidunt enim non velit pharetra, id viverra risus pretium. Mauris eu risus finibus, placerat dolor et, condimentum sapien. Sed tincidunt enim non velit pharetra, id viverra risus pretium. Mauris eu risus finibus, placerat dolor et, condimentum sapien. Sed tincidunt enim non velit pharetra, id viverra risus pretium. Mauris eu risus finibus, placerat dolor et, condimentum sapien. Sed tincidunt enim non velit pharetra, id viverra risus pretium. Mauris eu risus finibus, placerat dolor et, condimentum sapien. Sed tincidunt enim non velit pharetra, id viverra risus pretium. Mauris eu risus finibus, placerat dolor et, condimentum sapien. Sed tincidunt enim non velit pharetra, id viverra risus pretium. Mauris eu risus finibus, placerat dolor et, condimentum sapien. Sed tincidunt enim non velit pharetra, id viverra risus pretium. Mauris eu risus finibus, placerat dolor et, condimentum sapien. Sed tincidunt enim non velit pharetra, id viverra risus pretium. Mauris eu risus finibus, placerat dolor et, condimentum sapien. Sed tincidunt enim non velit pharetra, id viverra risus pretium. Mauris eu risus finibus, placerat dolor et, condimentum sapien. Sed tincidunt enim non velit pharetra, id viverra risus pretium. Mauris eu risus finibus, placerat dolor et, condimentum sapien. Sed tincidunt enim non velit pharetra, id viverra risus pretium. Mauris eu risus finibus, placerat dolor et, condimentum sapien. Sed tincidunt enim non velit pharetra, id viverra risus pretium. Mauris eu risus finibus, placerat dolor et, condimentum sapien.");
-            });
-        });
+				match &self.img {
+					Some(i) => ui.image(i.texture_id(ctx), i.size_vec2()), // Preview
+					_ => {
+						ui.centered_and_justified(|ui| {
+							ui.heading(RichText::new("Drop file here").strong())
+						}).response
+					} // No image
+				};
+				ui.add(egui::Separator::default().grow(8.0));
+				ui.label("Sed tincidunt enim non velit pharetra, id viverra risus pretium. Mauris eu risus finibus, placerat dolor et, condimentum sapien. Sed tincidunt enim non velit pharetra, id viverra risus pretium. Mauris eu risus finibus, placerat dolor et, condimentum sapien. Sed tincidunt enim non velit pharetra, id viverra risus pretium. Mauris eu risus finibus, placerat dolor et, condimentum sapien. Sed tincidunt enim non velit pharetra, id viverra risus pretium. Mauris eu risus finibus, placerat dolor et, condimentum sapien. Sed tincidunt enim non velit pharetra, id viverra risus pretium. Mauris eu risus finibus, placerat dolor et, condimentum sapien. Sed tincidunt enim non velit pharetra, id viverra risus pretium. Mauris eu risus finibus, placerat dolor et, condimentum sapien. Sed tincidunt enim non velit pharetra, id viverra risus pretium. Mauris eu risus finibus, placerat dolor et, condimentum sapien. Sed tincidunt enim non velit pharetra, id viverra risus pretium. Mauris eu risus finibus, placerat dolor et, condimentum sapien. Sed tincidunt enim non velit pharetra, id viverra risus pretium. Mauris eu risus finibus, placerat dolor et, condimentum sapien. Sed tincidunt enim non velit pharetra, id viverra risus pretium. Mauris eu risus finibus, placerat dolor et, condimentum sapien. Sed tincidunt enim non velit pharetra, id viverra risus pretium. Mauris eu risus finibus, placerat dolor et, condimentum sapien. Sed tincidunt enim non velit pharetra, id viverra risus pretium. Mauris eu risus finibus, placerat dolor et, condimentum sapien.");
+			});
+		});
 	}
 }
 
-impl eframe::App for MetadataApp {
+impl eframe::App for MetadataTool {
 	/// Called each time the UI needs repainting, which may be many times per second.
 	/// Put your widgets into a `SidePanel`, `TopPanel`, `CentralPanel`, `Window` or `Area`.
-	fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+	fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
 		// For inspiration and more examples, go to https://emilk.github.io/egui
 
 		#[cfg(not(target_arch = "wasm32"))] // no File->Quit on web pages!
@@ -237,7 +228,7 @@ impl eframe::App for MetadataApp {
 			egui::menu::bar(ui, |ui| {
 				ui.menu_button("File", |ui| {
 					if ui.button("Quit").clicked() {
-						_frame.close();
+						frame.close();
 					}
 				});
 			});
@@ -246,7 +237,7 @@ impl eframe::App for MetadataApp {
 		self.create_sidebar(ctx);
 		self.create_image_preview(ctx);
 
-		self.preview_files_being_dropped(ctx);
+		Self::preview_files_being_dropped(ctx);
 
 		ctx.input(|i| {
 			if !i.raw.dropped_files.is_empty() {

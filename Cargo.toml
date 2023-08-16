@@ -1,20 +1,26 @@
 [package]
 name = "dmi-meta-tool"
+description = "A tool designed to extract and re-apply DMI/zTxt metadata"
 version = "0.1.0"
 authors = ["ZeWaka <zewakagamer@gmail.com>"]
+license = "GPLv3"
+repository = "https://github.com/ZeWaka/dmi-meta-tool"
+keywords = ["dmi", "metadata"]
+categories = ["development-tools", "encoding"]
 edition = "2021"
 rust-version = "1.71"
 
 
 [dependencies]
+dmi = "0.3.0"
 egui = "0.22.0"
 egui_extras = { version = "0.22.0", features = ["image"] }
 image = { version = "0.24.7", default-features = false, features = ["png"] }
 eframe = { version = "0.22.0", default-features = false, features = [
-    #"accesskit",     # Make egui comptaible with screen readers. NOTE: adds a lot of dependencies.
-    "default_fonts", # Embed the default egui fonts.
-    "glow",          # Use the glow rendering backend. Alternative: "wgpu".
-    #"persistence",   # Enable restoring app state when restarting the app.
+	#"accesskit",     # Make egui comptaible with screen readers. NOTE: adds a lot of dependencies.
+	"default_fonts", # Embed the default egui fonts.
+	"glow",          # Use the glow rendering backend. Alternative: "wgpu".
+	#"persistence",   # Enable restoring app state when restarting the app.
 ] }
 log = "0.4"
 
