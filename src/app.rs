@@ -1,4 +1,4 @@
-use egui::{FontFamily, FontId, RichText, TextStyle};
+use egui::{vec2, FontFamily, FontId, RichText, TextStyle};
 use egui_extras::RetainedImage;
 use std::io::Cursor;
 
@@ -6,16 +6,25 @@ pub struct MetadataApp {
     img: Option<RetainedImage>,
     img_offset: egui::Pos2,
     dropped_files: Vec<egui::DroppedFile>,
-    picked_path: Option<String>,
+    image_info: Option<FileInfo>,
 
     available_height: f32,
     available_width: f32,
 }
+
+#[derive(Default)]
+struct FileInfo {
+    name: String,
+    path: String,
+    extension: String,
+    bytes: usize,
+}
+
 impl Default for MetadataApp {
     fn default() -> Self {
         Self {
             img: None,
-            picked_path: None,
+            image_info: None,
             available_height: 0.0,
             available_width: 0.0,
             img_offset: egui::pos2(0.0, 0.0),
@@ -101,15 +110,18 @@ impl MetadataApp {
                 ui.label("Dropped files:");
 
                 for file in &self.dropped_files {
-                    let mut info = if let Some(path) = &file.path {
-                        path.display().to_string()
+                    let mut info = FileInfo::default();
+                    if let Some(path) = &file.path {
+                        info.path = path.display().to_string()
                     } else if !file.name.is_empty() {
-                        file.name.clone()
+                        let filesplit: Vec<&str> = file.name.split('.').collect(); // yes i know this is terrible
+                        info.name = filesplit[0].to_owned();
+                        info.extension = filesplit[1].to_owned();
                     } else {
-                        "???".to_owned()
+                        info.name = "???".to_owned()
                     };
                     if let Some(bytes) = &file.bytes {
-                        info += &format!(" ({} bytes)", bytes.len());
+                        info.bytes = bytes.len();
                         if self.img.is_none() {
                             let mut buffer: Vec<u8> = Vec::new();
                             let mut writer = Cursor::new(&mut buffer);
@@ -119,10 +131,10 @@ impl MetadataApp {
                                 image::ImageFormat::Png,
                             ) {
                                 Ok(image) => image,
-                                Err(_) => {
+                                Err(e) => {
                                     ui.colored_label(
                                         egui::Color32::RED,
-                                        "Error loading image from memory",
+                                        format!("Error loading {} from memory: {e}", file.name),
                                     );
                                     return;
                                 }
@@ -138,11 +150,12 @@ impl MetadataApp {
                             self.img = None;
                             self.img =
                                 Some(RetainedImage::from_image_bytes("img", &buffer).unwrap());
+
+                            self.image_info = Some(info);
                         }
                     } else {
                         ui.label("Couldn't read file");
                     }
-                    ui.label(info);
                 }
             });
         }
@@ -152,19 +165,27 @@ impl MetadataApp {
         egui::SidePanel::left("side_panel").show(ctx, |ui| {
             ui.heading("DMI Metadata Tool");
 
-            if let Some(picked_path) = &self.picked_path {
-                ui.horizontal(|ui| {
-                    ui.label("Loaded file:");
-                    ui.monospace(self.img.unwrap());
-                });
-            }
-
             // Show dropped files (if any):
             self.load_file_or_err(ui);
 
-            // assure to clean the dropped files list as soon as we have an image. Needed to reload a new, future image.
+            // Clean the dropped files list as soon as we have an image. Needed to reload a new, future image.
             if self.img.is_some() {
                 self.dropped_files.clear();
+            }
+
+            if self.img.is_some() {
+                if let Some(image_info) = &self.image_info {
+                    ui.horizontal(|ui| {
+                        ui.label("Loaded file:");
+                        ui.monospace(&image_info.name);
+                    });
+                } else {
+                    ui.label("Error: No File Info");
+                }
+
+                if ui.button("Extract Metadata").clicked() {}
+
+                if ui.button("Apply Metadata").clicked() {}
             }
 
             ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
@@ -180,20 +201,26 @@ impl MetadataApp {
 
     fn create_image_preview(&mut self, ctx: &egui::Context) {
         egui::CentralPanel::default().show(ctx, |ui| {
-            // Get available space for the image
-            self.img_offset = ui.cursor().left_top();
-            self.available_height = ui.available_height();
-            self.available_width = ui.available_width();
 
-            let drop_here_prompt = {
-                ui.centered_and_justified(|ui| ui.heading(RichText::new("Drop file here").strong()))
-                    .response
-            };
+            let image_height = ui.available_height() * 0.70; // image takes up 70% of the height at max
+            ui.allocate_ui_with_layout( vec2(ui.available_width(), image_height), egui::Layout::top_down(egui::Align::LEFT), |ui| {
+                // Get available space for the image
+                self.img_offset = ui.cursor().left_top();
+                self.available_height = ui.available_height();
+                self.available_width = ui.available_width();
 
-            match &self.img {
-                Some(i) => ui.image(i.texture_id(ctx), i.size_vec2()), // Preview
-                _ => drop_here_prompt,                                 // No image
-            };
+                match &self.img {
+                    Some(i) => ui.image(i.texture_id(ctx), i.size_vec2()), // Preview
+                    _ => {
+                        ui.centered_and_justified(|ui| {
+                            ui.heading(RichText::new("Drop file here").strong())
+                        })
+                        .response
+                    } // No image
+                };
+                ui.add(egui::Separator::default().grow(8.0));
+                ui.label("Sed tincidunt enim non velit pharetra, id viverra risus pretium. Mauris eu risus finibus, placerat dolor et, condimentum sapien. Sed tincidunt enim non velit pharetra, id viverra risus pretium. Mauris eu risus finibus, placerat dolor et, condimentum sapien. Sed tincidunt enim non velit pharetra, id viverra risus pretium. Mauris eu risus finibus, placerat dolor et, condimentum sapien. Sed tincidunt enim non velit pharetra, id viverra risus pretium. Mauris eu risus finibus, placerat dolor et, condimentum sapien. Sed tincidunt enim non velit pharetra, id viverra risus pretium. Mauris eu risus finibus, placerat dolor et, condimentum sapien. Sed tincidunt enim non velit pharetra, id viverra risus pretium. Mauris eu risus finibus, placerat dolor et, condimentum sapien. Sed tincidunt enim non velit pharetra, id viverra risus pretium. Mauris eu risus finibus, placerat dolor et, condimentum sapien. Sed tincidunt enim non velit pharetra, id viverra risus pretium. Mauris eu risus finibus, placerat dolor et, condimentum sapien. Sed tincidunt enim non velit pharetra, id viverra risus pretium. Mauris eu risus finibus, placerat dolor et, condimentum sapien. Sed tincidunt enim non velit pharetra, id viverra risus pretium. Mauris eu risus finibus, placerat dolor et, condimentum sapien. Sed tincidunt enim non velit pharetra, id viverra risus pretium. Mauris eu risus finibus, placerat dolor et, condimentum sapien. Sed tincidunt enim non velit pharetra, id viverra risus pretium. Mauris eu risus finibus, placerat dolor et, condimentum sapien.");
+            });
         });
     }
 }
