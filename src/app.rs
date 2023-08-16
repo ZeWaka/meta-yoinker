@@ -133,7 +133,15 @@ impl MetadataTool {
 
 							if let Ok(raw_dmi) = dmi::RawDmi::load(bytes_reader) {
 								if let Some(metadata) = raw_dmi.chunk_ztxt {
-									self.img_metadata_raw = Some(metadata);
+									self.img_metadata_raw = Some(metadata.clone());
+
+									let mut mut_data = self.img_metadata_text.as_ref().borrow_mut();
+									mut_data.clear();
+									mut_data.push_str(&format!("{:#?}", metadata));
+
+									// let data = metadata.data;
+
+									// raw_dmi.chunk_ztxt.unwrap().set_data(data);
 								}
 							}
 
@@ -210,11 +218,6 @@ impl MetadataTool {
 						} // No image
 					};
 					ui.add(egui::Separator::default().grow(8.0));
-					if let Some(meta) = &self.img_metadata_raw {
-						let mut mut_data = self.img_metadata_text.as_ref().borrow_mut();
-						mut_data.clear();
-						mut_data.push_str(&format!("{:#?}", meta))
-					}
 
 					ui.code_editor(&mut self.img_metadata_text.as_ref().borrow().as_str());
 				},
