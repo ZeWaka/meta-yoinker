@@ -1,26 +1,34 @@
+use egui_extras::RetainedImage;
+use std::io::Cursor;
+
 /// We derive Deserialize/Serialize so we can persist app state on shutdown.
 #[derive(serde::Deserialize, serde::Serialize)]
 #[serde(default)] // if we add new fields, give them default values when deserializing old state
-pub struct TemplateApp {
-    // Example stuff:
-    label: String,
-
-    // this how you opt-out of serialization of a member
+pub struct MetadataApp {
     #[serde(skip)]
-    value: f32,
+    img: Option<RetainedImage>,
+    #[serde(skip)]
+    img_offset: egui::Pos2,
+    #[serde(skip)]
+    dropped_files: Vec<egui::DroppedFile>,
+    #[serde(skip)]
+    picked_path: Option<String>,
+    #[serde(skip)]
+    available_height: f32,
 }
-
-impl Default for TemplateApp {
+impl Default for MetadataApp {
     fn default() -> Self {
         Self {
-            // Example stuff:
-            label: "Hello World!".to_owned(),
-            value: 2.7,
+            img: None,
+            picked_path: None,
+            available_height: 0.0,
+            img_offset: egui::pos2(0.0, 0.0),
+            dropped_files: Vec::default(),
         }
     }
 }
 
-impl TemplateApp {
+impl MetadataApp {
     /// Called once before the first frame.
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
         // This is also where you can customize the look and feel of egui using
@@ -28,27 +36,64 @@ impl TemplateApp {
 
         // Load previous app state (if any).
         // Note that you must enable the `persistence` feature for this to work.
-        if let Some(storage) = cc.storage {
-            return eframe::get_value(storage, eframe::APP_KEY).unwrap_or_default();
-        }
+        // if let Some(storage) = cc.storage {
+        //     return eframe::get_value(storage, eframe::APP_KEY).unwrap_or_default();
+        // }
 
         Default::default()
     }
+
+    fn detect_files_being_dropped(&mut self, ctx: &egui::Context) {
+        use egui::*;
+
+        // Preview hovering files:
+        if !ctx.input(|i| i.raw.hovered_files.is_empty()) {
+            let text = ctx.input(|i| {
+                let mut text = "Dropping files:\n".to_owned();
+                for file in &i.raw.hovered_files {
+                    if let Some(path) = &file.path {
+                        text += &format!("\n{}", path.display());
+                    } else if !file.mime.is_empty() {
+                        text += &format!("\n{}", file.mime);
+                    } else {
+                        text += "\n???";
+                    }
+                }
+                text
+            });
+
+            let painter =
+                ctx.layer_painter(LayerId::new(Order::Foreground, Id::new("file_drop_target")));
+
+            let screen_rect = ctx.screen_rect().shrink(10.0);
+            painter.rect_filled(screen_rect, 0.0, Color32::from_black_alpha(70));
+            painter.text(
+                screen_rect.center(),
+                Align2::CENTER_CENTER,
+                text,
+                TextStyle::Heading.resolve(&ctx.style()),
+                Color32::WHITE,
+            );
+        }
+
+        // Collect dropped files:
+        ctx.input(|i| {
+            if !i.raw.dropped_files.is_empty() {
+                self.dropped_files = i.raw.dropped_files.clone();
+            }
+        });
+    }
 }
 
-impl eframe::App for TemplateApp {
+impl eframe::App for MetadataApp {
     /// Called by the frame work to save state before shutdown.
-    fn save(&mut self, storage: &mut dyn eframe::Storage) {
-        eframe::set_value(storage, eframe::APP_KEY, self);
-    }
+    // fn save(&mut self, storage: &mut dyn eframe::Storage) {
+    //     eframe::set_value(storage, eframe::APP_KEY, self);
+    // }
 
     /// Called each time the UI needs repainting, which may be many times per second.
     /// Put your widgets into a `SidePanel`, `TopPanel`, `CentralPanel`, `Window` or `Area`.
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        let Self { label, value } = self;
-
-        // Examples of how to create different panels and windows.
-        // Pick whichever suits you.
         // Tip: a good default choice is to just keep the `CentralPanel`.
         // For inspiration and more examples, go to https://emilk.github.io/egui
 
@@ -67,50 +112,79 @@ impl eframe::App for TemplateApp {
         egui::SidePanel::left("side_panel").show(ctx, |ui| {
             ui.heading("Side Panel");
 
-            ui.horizontal(|ui| {
-                ui.label("Write something: ");
-                ui.text_edit_singleline(label);
-            });
+            ui.label("Drop image here");
 
-            ui.add(egui::Slider::new(value, 0.0..=10.0).text("value"));
-            if ui.button("Increment").clicked() {
-                *value += 1.0;
+            if let Some(picked_path) = &self.picked_path {
+                ui.horizontal(|ui| {
+                    ui.label("Picked file:");
+                    ui.monospace(picked_path);
+                });
             }
 
-            ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
-                ui.horizontal(|ui| {
-                    ui.spacing_mut().item_spacing.x = 0.0;
-                    ui.label("powered by ");
-                    ui.hyperlink_to("egui", "https://github.com/emilk/egui");
-                    ui.label(" and ");
-                    ui.hyperlink_to(
-                        "eframe",
-                        "https://github.com/emilk/egui/tree/master/crates/eframe",
-                    );
-                    ui.label(".");
+            // Show dropped files (if any):
+            if self.dropped_files.is_empty() {
+                ui.label("No file");
+            } else {
+                ui.group(|ui| {
+                    ui.label("Dropped files:");
+
+                    for file in &self.dropped_files {
+                        let mut info = if let Some(path) = &file.path {
+                            path.display().to_string()
+                        } else if !file.name.is_empty() {
+                            file.name.clone()
+                        } else {
+                            "???".to_owned()
+                        };
+                        if let Some(bytes) = &file.bytes {
+                            info += &format!(" ({} bytes)", bytes.len());
+                            if self.img.is_none() {
+                                let mut buffer: Vec<u8> = Vec::new();
+                                let mut writer = Cursor::new(&mut buffer);
+
+                                let mut i = image::load_from_memory_with_format(
+                                    bytes,
+                                    image::ImageFormat::Jpeg,
+                                )
+                                .unwrap();
+
+                                let h = (self.available_height - 10.0) as u32;
+
+                                ui.label(format!("height {}", h));
+                                i = i.resize(h, h, image::imageops::FilterType::Nearest);
+                                i.write_to(&mut writer, image::ImageFormat::Jpeg).unwrap();
+
+                                self.img = None;
+                                self.img =
+                                    Some(RetainedImage::from_image_bytes("img", &buffer).unwrap());
+                            }
+                        } else {
+                            ui.label("Couldn't read file");
+                        }
+                        ui.label(info);
+                    }
                 });
-            });
+            }
+
+            // assure to clean the dropped files list as soon as we have an image. Needed to reload a new, future image.
+            if self.img.is_some() {
+                self.dropped_files.clear();
+            }
         });
 
         egui::CentralPanel::default().show(ctx, |ui| {
             // The central panel the region left after adding TopPanel's and SidePanel's
 
-            ui.heading("eframe template");
-            ui.hyperlink("https://github.com/emilk/eframe_template");
-            ui.add(egui::github_link_file!(
-                "https://github.com/emilk/eframe_template/blob/master/",
-                "Source code."
-            ));
-            egui::warn_if_debug_build(ui);
+            // Get available space for the image
+            self.img_offset = ui.cursor().left_top();
+            self.available_height = ui.available_height();
+
+            match &self.img {
+                Some(i) => ui.image(i.texture_id(ctx), i.size_vec2()),
+                _ => ui.label(""),
+            };
         });
 
-        if false {
-            egui::Window::new("Window").show(ctx, |ui| {
-                ui.label("Windows can be moved by dragging them.");
-                ui.label("They are automatically sized based on contents.");
-                ui.label("You can turn on resizing and scrolling if you like.");
-                ui.label("You would normally choose either panels OR windows.");
-            });
-        }
+        self.detect_files_being_dropped(ctx);
     }
 }

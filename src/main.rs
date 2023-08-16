@@ -8,9 +8,9 @@ fn main() -> eframe::Result<()> {
 
     let native_options = eframe::NativeOptions::default();
     eframe::run_native(
-        "eframe template",
+        "DMI Metadata Tool",
         native_options,
-        Box::new(|cc| Box::new(dmi_meta_web::TemplateApp::new(cc))),
+        Box::new(|cc| Box::new(dmi_meta_web::MetadataApp::new(cc))),
     )
 }
 
@@ -27,7 +27,7 @@ fn main() {
             .start(
                 "the_canvas_id", // hardcode it
                 web_options,
-                Box::new(|cc| Box::new(dmi_meta_web::TemplateApp::new(cc))),
+                Box::new(|cc| Box::new(dmi_meta_web::MetadataApp::new(cc))),
             )
             .await
             .expect("failed to start eframe");
