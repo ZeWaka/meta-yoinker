@@ -379,20 +379,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "dmi-meta-tool"
-version = "0.1.0"
-dependencies = [
- "dmi",
- "eframe",
- "egui",
- "egui_extras",
- "env_logger",
- "image",
- "log",
- "wasm-bindgen-futures",
-]
-
-[[package]]
 name = "downcast-rs"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -934,6 +920,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5aa361d4faea93603064a027415f07bd8e1d5c88c9fbf68bf56a285428fd79ce"
 dependencies = [
  "autocfg",
+]
+
+[[package]]
+name = "meta-yoinker"
+version = "0.1.0"
+dependencies = [
+ "dmi",
+ "eframe",
+ "egui",
+ "egui_extras",
+ "env_logger",
+ "image",
+ "log",
+ "wasm-bindgen-futures",
 ]
 
 [[package]]

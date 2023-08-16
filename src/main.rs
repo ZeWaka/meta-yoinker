@@ -10,7 +10,7 @@ fn main() -> eframe::Result<()> {
 	eframe::run_native(
 		"DMI Metadata Tool",
 		native_options,
-		Box::new(|cc| Box::new(dmi_meta_tool::MetadataTool::new(cc))),
+		Box::new(|cc| Box::new(meta_yoinker::MetadataTool::new(cc))),
 	)
 }
 
@@ -27,7 +27,7 @@ fn main() {
 			.start(
 				"the_canvas_id", // hardcode it
 				web_options,
-				Box::new(|cc| Box::new(dmi_meta_tool::MetadataTool::new(cc))),
+				Box::new(|cc| Box::new(meta_yoinker::MetadataTool::new(cc))),
 			)
 			.await
 			.expect("failed to start eframe");

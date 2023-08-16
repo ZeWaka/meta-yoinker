@@ -1,10 +1,11 @@
 use egui::{vec2, FontFamily, FontId, RichText, TextStyle};
 use egui_extras::RetainedImage;
-use std::io::Cursor;
+use std::{cell::RefCell, io::Cursor, rc::Rc};
 
 pub struct MetadataTool {
 	img: Option<RetainedImage>,
-	img_metadata: Option<dmi::ztxt::RawZtxtChunk>,
+	img_metadata_raw: Option<dmi::ztxt::RawZtxtChunk>,
+	img_metadata_text: Rc<RefCell<String>>,
 	image_info: Option<FileInfo>,
 	available_height: f32,
 	available_width: f32,
@@ -23,7 +24,8 @@ impl Default for MetadataTool {
 	fn default() -> Self {
 		Self {
 			img: None,
-			img_metadata: None,
+			img_metadata_raw: None,
+			img_metadata_text: Rc::new(RefCell::new("".to_owned())),
 			image_info: None,
 			available_height: 0.0,
 			available_width: 0.0,
@@ -131,7 +133,7 @@ impl MetadataTool {
 
 							if let Ok(raw_dmi) = dmi::RawDmi::load(bytes_reader) {
 								if let Some(metadata) = raw_dmi.chunk_ztxt {
-									self.img_metadata = Some(metadata);
+									self.img_metadata_raw = Some(metadata);
 								}
 							}
 
@@ -156,7 +158,7 @@ impl MetadataTool {
 
 	fn create_sidebar(&mut self, ctx: &egui::Context) {
 		egui::SidePanel::left("side_panel").show(ctx, |ui| {
-			ui.heading("DMI Metadata Tool");
+			ui.heading("MetaYoinker 😈");
 
 			// Show dropped files (if any):
 			self.load_files_or_err(ui);
@@ -168,24 +170,18 @@ impl MetadataTool {
 
 			if self.img.is_some() {
 				if let Some(image_info) = &self.image_info {
-					ui.horizontal(|ui| {
-						ui.label("Loaded file:");
-						ui.monospace(&image_info.name);
-					});
+					ui.label("Loaded file:");
+					ui.monospace(&image_info.name);
 				} else {
 					ui.label("Error: No File Info");
 				}
-
-				if ui.button("Extract Metadata").clicked() {}
-
-				if ui.button("Apply Metadata").clicked() {}
 			}
 
 			ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
 				ui.horizontal(|ui| {
 					ui.spacing_mut().item_spacing.x = 0.0;
 					ui.label("Made by ZeWaka (");
-					ui.hyperlink_to("GitHub", "https://github.com/ZeWaka/dmi-meta-tool");
+					ui.hyperlink_to("GitHub", env!("CARGO_PKG_REPOSITORY"));
 					ui.label(")");
 				});
 			});
@@ -195,23 +191,34 @@ impl MetadataTool {
 	fn create_image_preview(&mut self, ctx: &egui::Context) {
 		egui::CentralPanel::default().show(ctx, |ui| {
 			let image_height = ui.available_height() * 0.70; // image takes up 70% of the height at max
-			ui.allocate_ui_with_layout( vec2(ui.available_width(), image_height), egui::Layout::top_down(egui::Align::LEFT), |ui| {
-				// Get available space for the image
-				self.img_offset = ui.cursor().left_top();
-				self.available_height = ui.available_height();
-				self.available_width = ui.available_width();
+			ui.allocate_ui_with_layout(
+				vec2(ui.available_width(), image_height),
+				egui::Layout::top_down(egui::Align::LEFT),
+				|ui| {
+					// Get available space for the image
+					self.img_offset = ui.cursor().left_top();
+					self.available_height = ui.available_height();
+					self.available_width = ui.available_width();
 
-				match &self.img {
-					Some(i) => ui.image(i.texture_id(ctx), i.size_vec2()), // Preview
-					_ => {
-						ui.centered_and_justified(|ui| {
-							ui.heading(RichText::new("Drop file here").strong())
-						}).response
-					} // No image
-				};
-				ui.add(egui::Separator::default().grow(8.0));
-				ui.label("Sed tincidunt enim non velit pharetra, id viverra risus pretium. Mauris eu risus finibus, placerat dolor et, condimentum sapien. Sed tincidunt enim non velit pharetra, id viverra risus pretium. Mauris eu risus finibus, placerat dolor et, condimentum sapien. Sed tincidunt enim non velit pharetra, id viverra risus pretium. Mauris eu risus finibus, placerat dolor et, condimentum sapien. Sed tincidunt enim non velit pharetra, id viverra risus pretium. Mauris eu risus finibus, placerat dolor et, condimentum sapien. Sed tincidunt enim non velit pharetra, id viverra risus pretium. Mauris eu risus finibus, placerat dolor et, condimentum sapien. Sed tincidunt enim non velit pharetra, id viverra risus pretium. Mauris eu risus finibus, placerat dolor et, condimentum sapien. Sed tincidunt enim non velit pharetra, id viverra risus pretium. Mauris eu risus finibus, placerat dolor et, condimentum sapien. Sed tincidunt enim non velit pharetra, id viverra risus pretium. Mauris eu risus finibus, placerat dolor et, condimentum sapien. Sed tincidunt enim non velit pharetra, id viverra risus pretium. Mauris eu risus finibus, placerat dolor et, condimentum sapien. Sed tincidunt enim non velit pharetra, id viverra risus pretium. Mauris eu risus finibus, placerat dolor et, condimentum sapien. Sed tincidunt enim non velit pharetra, id viverra risus pretium. Mauris eu risus finibus, placerat dolor et, condimentum sapien. Sed tincidunt enim non velit pharetra, id viverra risus pretium. Mauris eu risus finibus, placerat dolor et, condimentum sapien.");
-			});
+					match &self.img {
+						Some(i) => ui.image(i.texture_id(ctx), i.size_vec2()), // Preview
+						_ => {
+							ui.centered_and_justified(|ui| {
+								ui.heading(RichText::new("Drop file here").strong())
+							})
+							.response
+						} // No image
+					};
+					ui.add(egui::Separator::default().grow(8.0));
+					if let Some(meta) = &self.img_metadata_raw {
+						let mut mut_data = self.img_metadata_text.as_ref().borrow_mut();
+						mut_data.clear();
+						mut_data.push_str(&format!("{:#?}", meta))
+					}
+
+					ui.code_editor(&mut self.img_metadata_text.as_ref().borrow().as_str());
+				},
+			);
 		});
 	}
 }

@@ -1,10 +1,10 @@
 [package]
-name = "dmi-meta-tool"
+name = "meta-yoinker"
 description = "A tool designed to extract and re-apply DMI/zTxt metadata"
 version = "0.1.0"
 authors = ["ZeWaka <zewakagamer@gmail.com>"]
 license = "GPLv3"
-repository = "https://github.com/ZeWaka/dmi-meta-tool"
+repository = "https://github.com/ZeWaka/meta-yoinker"
 keywords = ["dmi", "metadata"]
 categories = ["development-tools", "encoding"]
 edition = "2021"
