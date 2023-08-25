@@ -5,7 +5,7 @@ use std::{cell::RefCell, io::Cursor, rc::Rc};
 pub struct MetadataTool {
 	img: Option<RetainedImage>,
 	img_metadata_raw: Option<dmi::ztxt::RawZtxtChunk>,
-	img_metadata_text: Rc<RefCell<String>>,
+	img_metadata_text: Option<Rc<RefCell<String>>>,
 	image_info: Option<FileInfo>,
 	available_height: f32,
 	available_width: f32,
@@ -25,7 +25,7 @@ impl Default for MetadataTool {
 		Self {
 			img: None,
 			img_metadata_raw: None,
-			img_metadata_text: Rc::new(RefCell::new("".to_owned())),
+			img_metadata_text: None,
 			image_info: None,
 			available_height: 0.0,
 			available_width: 0.0,
@@ -135,29 +135,26 @@ impl MetadataTool {
 								if let Some(metadata) = raw_dmi.chunk_ztxt {
 									self.img_metadata_raw = Some(metadata.clone());
 
-									let mut mut_data = self.img_metadata_text.as_ref().borrow_mut();
-									mut_data.clear();
-									mut_data.push_str(&format!("{:#?}", metadata));
-
-									// let data = metadata.data;
-
-									// raw_dmi.chunk_ztxt.unwrap().set_data(data);
+									if let None = self.img_metadata_text {
+										self.img_metadata_text =
+											Some(Rc::new(RefCell::new(format!("{:#?}", metadata))));
+									}
 								}
+
+								let h = (self.available_height - 10.0) as u32;
+								let w = (self.available_width - 10.0) as u32;
+
+								i = i.resize(w, h, image::imageops::FilterType::Nearest);
+								i.write_to(&mut writer, image::ImageFormat::Png).unwrap();
+
+								self.img = None;
+								self.img =
+									Some(RetainedImage::from_image_bytes("img", &buffer).unwrap());
+								self.image_info = Some(info);
 							}
-
-							let h = (self.available_height - 10.0) as u32;
-							let w = (self.available_width - 10.0) as u32;
-
-							i = i.resize(w, h, image::imageops::FilterType::Nearest);
-							i.write_to(&mut writer, image::ImageFormat::Png).unwrap();
-
-							self.img = None;
-							self.img =
-								Some(RetainedImage::from_image_bytes("img", &buffer).unwrap());
-							self.image_info = Some(info);
+						} else {
+							ui.label("Couldn't read file");
 						}
-					} else {
-						ui.label("Couldn't read file");
 					}
 				}
 			});
@@ -219,7 +216,15 @@ impl MetadataTool {
 					};
 					ui.add(egui::Separator::default().grow(8.0));
 
-					ui.code_editor(&mut self.img_metadata_text.as_ref().borrow().as_str());
+					match &self.img_metadata_text {
+						Some(metadata) => {
+							let cloned_metadata = metadata.clone();
+							ui.code_editor(&mut cloned_metadata.as_ref().borrow().as_str());
+						}
+						_ => {
+							ui.code_editor(&mut String::from("No Metadata"));
+						}
+					}
 				},
 			);
 		});
