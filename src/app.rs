@@ -5,7 +5,7 @@ use std::{cell::RefCell, io::Cursor, rc::Rc};
 pub struct MetadataTool {
 	img: Option<RetainedImage>,
 	img_metadata_raw: Option<dmi::ztxt::RawZtxtChunk>,
-	img_metadata_text: Option<Rc<RefCell<String>>>,
+	img_metadata_text: MetadataStatus,
 	image_info: Option<FileInfo>,
 	available_height: f32,
 	available_width: f32,
@@ -20,12 +20,19 @@ struct FileInfo {
 	bytes: usize,
 }
 
+#[derive(PartialEq)]
+enum MetadataStatus {
+	NotLoaded,
+	NoMeta,
+	Meta(Rc<RefCell<String>>),
+}
+
 impl Default for MetadataTool {
 	fn default() -> Self {
 		Self {
 			img: None,
 			img_metadata_raw: None,
-			img_metadata_text: None,
+			img_metadata_text: MetadataStatus::NotLoaded,
 			image_info: None,
 			available_height: 0.0,
 			available_width: 0.0,
@@ -134,15 +141,15 @@ impl MetadataTool {
 							if let Ok(raw_dmi) = dmi::RawDmi::load(bytes_reader) {
 								if let Some(metadata) = raw_dmi.chunk_ztxt {
 									self.img_metadata_raw = Some(metadata.clone());
-
-									if let None = self.img_metadata_text {
-										self.img_metadata_text =
-											Some(Rc::new(RefCell::new(format!("{:#?}", metadata))));
-									}
+									self.img_metadata_text = MetadataStatus::Meta(Rc::new(
+										RefCell::new(format!("{:#?}", metadata)),
+									));
+								} else {
+									self.img_metadata_text = MetadataStatus::NoMeta;
 								}
 
-								let h = (self.available_height - 10.0) as u32;
-								let w = (self.available_width - 10.0) as u32;
+								let h = (self.available_height * 0.6) as u32;
+								let w = (self.available_width * 0.6) as u32;
 
 								i = i.resize(w, h, image::imageops::FilterType::Nearest);
 								i.write_to(&mut writer, image::ImageFormat::Png).unwrap();
@@ -194,6 +201,40 @@ impl MetadataTool {
 	}
 
 	fn create_image_preview(&mut self, ctx: &egui::Context) {
+		egui::TopBottomPanel::bottom("gaming").show(ctx, |ui| {
+			ui.allocate_ui_with_layout(
+				vec2(ui.available_width(), ui.available_height() * 0.2),
+				egui::Layout::left_to_right(egui::Align::Center),
+				|ui| {
+					// Center the content horizontally
+					match &self.img_metadata_text {
+						MetadataStatus::Meta(metadata) => {
+							let cloned_metadata = metadata.clone();
+							ui.code_editor(&mut cloned_metadata.as_ref().borrow().as_str());
+						}
+						MetadataStatus::NoMeta => {
+							ui.code_editor(&mut String::from("No Metadata"));
+						}
+						MetadataStatus::NotLoaded => {
+							ui.code_editor(&mut String::from("Not Loaded"));
+						}
+					}
+					ui.separator(); // Add a separator between the two code_editor blocks
+					match &self.img_metadata_text {
+						MetadataStatus::Meta(metadata) => {
+							let cloned_metadata = metadata.clone();
+							ui.code_editor(&mut cloned_metadata.as_ref().borrow().as_str());
+						}
+						MetadataStatus::NoMeta => {
+							ui.code_editor(&mut String::from("No Metadata"));
+						}
+						MetadataStatus::NotLoaded => {
+							ui.code_editor(&mut String::from("Not Loaded"));
+						}
+					}
+				},
+			);
+		});
 		egui::CentralPanel::default().show(ctx, |ui| {
 			let image_height = ui.available_height() * 0.70; // image takes up 70% of the height at max
 			ui.allocate_ui_with_layout(
@@ -214,17 +255,6 @@ impl MetadataTool {
 							.response
 						} // No image
 					};
-					ui.add(egui::Separator::default().grow(8.0));
-
-					match &self.img_metadata_text {
-						Some(metadata) => {
-							let cloned_metadata = metadata.clone();
-							ui.code_editor(&mut cloned_metadata.as_ref().borrow().as_str());
-						}
-						_ => {
-							ui.code_editor(&mut String::from("No Metadata"));
-						}
-					}
 				},
 			);
 		});
@@ -234,7 +264,7 @@ impl MetadataTool {
 impl eframe::App for MetadataTool {
 	/// Called each time the UI needs repainting, which may be many times per second.
 	/// Put your widgets into a `SidePanel`, `TopPanel`, `CentralPanel`, `Window` or `Area`.
-	fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+	fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
 		// For inspiration and more examples, go to https://emilk.github.io/egui
 
 		#[cfg(not(target_arch = "wasm32"))] // no File->Quit on web pages!
@@ -243,7 +273,7 @@ impl eframe::App for MetadataTool {
 			egui::menu::bar(ui, |ui| {
 				ui.menu_button("File", |ui| {
 					if ui.button("Quit").clicked() {
-						frame.close();
+						_frame.close();
 					}
 				});
 			});
