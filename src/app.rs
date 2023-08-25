@@ -1,4 +1,4 @@
-use egui::{vec2, FontFamily, FontId, RichText, TextStyle};
+use egui::{vec2, DroppedFile, FontFamily, FontId, RichText, TextStyle};
 use egui_extras::RetainedImage;
 use std::{cell::RefCell, io::Cursor, rc::Rc};
 
@@ -102,6 +102,23 @@ impl MetadataTool {
 		);
 	}
 
+	/// Loads the contents of a DroppedFile, depending on platform. Returns the bytes.
+	fn load_file_contents(file: &DroppedFile) -> Option<Vec<u8>> {
+		if let Some(path) = &file.path {
+			// Load file contents from the path (non-web)
+			if let Ok(mut file) = std::fs::File::open(path) {
+				let mut buffer = Vec::new();
+				if std::io::Read::read_to_end(&mut file, &mut buffer).is_ok() {
+					return Some(buffer);
+				}
+			}
+		} else if let Some(bytes) = &file.bytes {
+			// Use existing bytes (web)
+			return Some(bytes.clone().to_vec());
+		}
+		None
+	}
+
 	fn load_files_or_err(&mut self, ui: &mut egui::Ui) {
 		if !self.dropped_files.is_empty() {
 			ui.group(|ui| {
@@ -111,21 +128,27 @@ impl MetadataTool {
 					let mut info = FileInfo::default();
 					if let Some(path) = &file.path {
 						info.path = path.display().to_string();
+						if let Some(file_name_osstr) = path.file_name() {
+							info.name = file_name_osstr.to_string_lossy().into_owned();
+						} else {
+							info.name = "???".to_owned();
+						}
 					} else if !file.name.is_empty() {
 						info.name = file.name.clone();
 					} else {
 						info.name = "???".to_owned();
 					};
 
-					if let Some(bytes) = &file.bytes {
+					if let Some(bytes) = Self::load_file_contents(file) {
 						info.bytes = bytes.len();
+
 						if self.img.is_none() {
 							let mut buffer: Vec<u8> = Vec::new();
 							let mut writer = Cursor::new(&mut buffer);
-							let bytes_reader = Cursor::new(bytes);
+							let bytes_reader = Cursor::new(&bytes);
 
 							let mut i = match image::load_from_memory_with_format(
-								bytes,
+								&bytes,
 								image::ImageFormat::Png,
 							) {
 								Ok(image) => image,
@@ -201,6 +224,33 @@ impl MetadataTool {
 	}
 
 	fn create_image_preview(&mut self, ctx: &egui::Context) {
+		self.create_meta_viewer(ctx);
+		egui::CentralPanel::default().show(ctx, |ui| {
+			let image_height = ui.available_height() * 0.70; // image takes up 70% of the height at max
+			ui.allocate_ui_with_layout(
+				vec2(ui.available_width(), image_height),
+				egui::Layout::top_down(egui::Align::LEFT),
+				|ui| {
+					// Get available space for the image
+					self.img_offset = ui.cursor().left_top();
+					self.available_height = ui.available_height();
+					self.available_width = ui.available_width();
+
+					match &self.img {
+						Some(i) => ui.image(i.texture_id(ctx), i.size_vec2()), // Preview
+						_ => {
+							ui.centered_and_justified(|ui| {
+								ui.heading(RichText::new("Drop file here").strong())
+							})
+							.response
+						} // No image
+					};
+				},
+			);
+		});
+	}
+
+	fn create_meta_viewer(&mut self, ctx: &egui::Context) {
 		egui::TopBottomPanel::bottom("gaming").show(ctx, |ui| {
 			ui.allocate_ui_with_layout(
 				vec2(ui.available_width(), ui.available_height() * 0.2),
@@ -232,29 +282,6 @@ impl MetadataTool {
 							ui.code_editor(&mut String::from("Not Loaded"));
 						}
 					}
-				},
-			);
-		});
-		egui::CentralPanel::default().show(ctx, |ui| {
-			let image_height = ui.available_height() * 0.70; // image takes up 70% of the height at max
-			ui.allocate_ui_with_layout(
-				vec2(ui.available_width(), image_height),
-				egui::Layout::top_down(egui::Align::LEFT),
-				|ui| {
-					// Get available space for the image
-					self.img_offset = ui.cursor().left_top();
-					self.available_height = ui.available_height();
-					self.available_width = ui.available_width();
-
-					match &self.img {
-						Some(i) => ui.image(i.texture_id(ctx), i.size_vec2()), // Preview
-						_ => {
-							ui.centered_and_justified(|ui| {
-								ui.heading(RichText::new("Drop file here").strong())
-							})
-							.response
-						} // No image
-					};
 				},
 			);
 		});
