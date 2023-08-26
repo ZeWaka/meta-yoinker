@@ -15,7 +15,7 @@ struct UIWindow {
 	metadata: Rc<ImageMetadata>,
 }
 
-#[derive(Clone, Default)]
+#[derive(Default)]
 struct ImageMetadata {
 	img_metadata_raw: Option<dmi::ztxt::RawZtxtChunk>,
 	img_metadata_text: MetadataStatus,
@@ -25,20 +25,14 @@ struct ImageMetadata {
 #[derive(Clone, Default)]
 struct FileInfo {
 	name: String,
-	path: String,
 }
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone, Default, PartialEq)]
 enum MetadataStatus {
+	#[default]
 	NotLoaded,
 	NoMeta,
 	Meta(Rc<RefCell<String>>),
-}
-
-impl Default for MetadataStatus {
-	fn default() -> Self {
-		MetadataStatus::NotLoaded
-	}
 }
 
 fn configure_text_styles(ctx: &egui::Context) {
@@ -176,9 +170,7 @@ impl MetadataTool {
 										},
 										image_info: {
 											let name_str: String;
-											let mut path_str: String = String::new();
 											if let Some(path) = &file.path {
-												path_str = path.display().to_string();
 												if let Some(file_name_osstr) = path.file_name() {
 													name_str = file_name_osstr
 														.to_string_lossy()
@@ -191,10 +183,7 @@ impl MetadataTool {
 											} else {
 												name_str = "???".to_owned();
 											};
-											FileInfo {
-												name: name_str,
-												path: path_str,
-											}
+											FileInfo { name: name_str }
 										},
 									}
 								}),
@@ -236,61 +225,6 @@ impl MetadataTool {
 					ui.label(")");
 				});
 			});
-		});
-	}
-
-	fn create_image_preview(
-		&mut self,
-		ctx: &egui::Context,
-		img: &Option<Rc<RetainedImage>>,
-		metadata: &Rc<ImageMetadata>,
-	) {
-		self.create_meta_viewer(ctx, metadata);
-		egui::CentralPanel::default().show(ctx, |ui| {
-			let image_height = ui.available_height() * 1.0; // image takes up 70% of the height at max
-			ui.allocate_ui_with_layout(
-				vec2(ui.available_width(), image_height),
-				egui::Layout::top_down(egui::Align::Center),
-				|ui| {
-					match img {
-						Some(i) => ui.image(i.texture_id(ctx), i.size_vec2()), // Preview
-						_ => {
-							ui.centered_and_justified(|ui| {
-								ui.heading(RichText::new("Drop file here").strong())
-							})
-							.response
-						} // No image
-					};
-				},
-			);
-		});
-	}
-	fn create_meta_viewer(&mut self, ctx: &egui::Context, metadata: &Rc<ImageMetadata>) {
-		egui::TopBottomPanel::bottom("gaming").show(ctx, |ui| {
-			ui.allocate_ui_with_layout(
-				vec2(ui.available_width(), ui.available_height() * 0.8),
-				egui::Layout::left_to_right(egui::Align::Center),
-				|ui| {
-					// Center the content horizontally
-					match &metadata.img_metadata_text {
-						MetadataStatus::Meta(metadata) => {
-							let cloned_metadata = metadata.clone();
-							ui.code_editor(&mut cloned_metadata.as_ref().borrow().as_str());
-						}
-						MetadataStatus::NoMeta => {
-							ui.code_editor(&mut String::from("No Metadata"));
-						}
-						MetadataStatus::NotLoaded => {
-							ui.code_editor(&mut String::from("Nothing Loaded"));
-						}
-					}
-					if ui.button(RichText::new("➡").size(20.0)).clicked() {
-						// TODO: copy data
-					}
-					//TODO: Save and display data
-					ui.code_editor(&mut String::from("Nothing Saved"));
-				},
-			);
 		});
 	}
 }
