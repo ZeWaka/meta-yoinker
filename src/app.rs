@@ -2,43 +2,42 @@ use egui::{vec2, DroppedFile, FontFamily, FontId, RichText, TextStyle};
 use egui_extras::RetainedImage;
 use std::{cell::RefCell, io::Cursor, rc::Rc};
 
+#[derive(Default)]
 pub struct MetadataTool {
-	img: Option<RetainedImage>,
-	img_metadata_raw: Option<dmi::ztxt::RawZtxtChunk>,
-	img_metadata_text: MetadataStatus,
-	image_info: Option<FileInfo>,
-	available_height: f32,
-	available_width: f32,
-	img_offset: egui::Pos2,
+	windows: Vec<UIWindow>,
 	dropped_files: Vec<egui::DroppedFile>,
 }
 
 #[derive(Default)]
+struct UIWindow {
+	id: uuid::Uuid,
+	img: Option<Rc<RetainedImage>>,
+	metadata: Rc<ImageMetadata>,
+}
+
+#[derive(Clone, Default)]
+struct ImageMetadata {
+	img_metadata_raw: Option<dmi::ztxt::RawZtxtChunk>,
+	img_metadata_text: MetadataStatus,
+	image_info: Option<FileInfo>,
+}
+
+#[derive(Clone, Default)]
 struct FileInfo {
 	name: String,
 	path: String,
-	bytes: usize,
 }
 
-#[derive(PartialEq)]
+#[derive(Clone, PartialEq)]
 enum MetadataStatus {
 	NotLoaded,
 	NoMeta,
 	Meta(Rc<RefCell<String>>),
 }
 
-impl Default for MetadataTool {
+impl Default for MetadataStatus {
 	fn default() -> Self {
-		Self {
-			img: None,
-			img_metadata_raw: None,
-			img_metadata_text: MetadataStatus::NotLoaded,
-			image_info: None,
-			available_height: 0.0,
-			available_width: 0.0,
-			img_offset: egui::pos2(0.0, 0.0),
-			dropped_files: Vec::default(),
-		}
+		MetadataStatus::NotLoaded
 	}
 }
 
@@ -125,65 +124,87 @@ impl MetadataTool {
 				ui.label("Dropped files:");
 
 				for file in &self.dropped_files {
-					let mut info = FileInfo::default();
-					if let Some(path) = &file.path {
-						info.path = path.display().to_string();
-						if let Some(file_name_osstr) = path.file_name() {
-							info.name = file_name_osstr.to_string_lossy().into_owned();
-						} else {
-							info.name = "???".to_owned();
-						}
-					} else if !file.name.is_empty() {
-						info.name = file.name.clone();
-					} else {
-						info.name = "???".to_owned();
-					};
-
 					if let Some(bytes) = Self::load_file_contents(file) {
-						info.bytes = bytes.len();
+						if bytes.is_empty() {
+							return;
+						}
 
-						if self.img.is_none() {
-							let mut buffer: Vec<u8> = Vec::new();
-							let mut writer = Cursor::new(&mut buffer);
-							let bytes_reader = Cursor::new(&bytes);
+						let mut buffer: Vec<u8> = Vec::new();
+						let mut writer = Cursor::new(&mut buffer);
+						let bytes_reader = Cursor::new(&bytes);
 
-							let mut i = match image::load_from_memory_with_format(
-								&bytes,
-								image::ImageFormat::Png,
-							) {
-								Ok(image) => image,
-								Err(e) => {
-									ui.colored_label(
-										egui::Color32::RED,
-										format!("Error loading {} from memory: {e}", file.name),
-									);
-									return;
-								}
-							};
-
-							if let Ok(raw_dmi) = dmi::RawDmi::load(bytes_reader) {
-								if let Some(metadata) = raw_dmi.chunk_ztxt {
-									self.img_metadata_raw = Some(metadata.clone());
-									self.img_metadata_text = MetadataStatus::Meta(Rc::new(
-										RefCell::new(format!("{:#?}", metadata)),
-									));
-								} else {
-									self.img_metadata_text = MetadataStatus::NoMeta;
-								}
-
-								let h = (self.available_height * 0.6) as u32;
-								let w = (self.available_width * 0.6) as u32;
-
-								i = i.resize(w, h, image::imageops::FilterType::Nearest);
-								i.write_to(&mut writer, image::ImageFormat::Png).unwrap();
-
-								self.img = None;
-								self.img =
-									Some(RetainedImage::from_image_bytes("img", &buffer).unwrap());
-								self.image_info = Some(info);
+						let mut i = match image::load_from_memory_with_format(
+							&bytes,
+							image::ImageFormat::Png,
+						) {
+							Ok(image) => image,
+							Err(e) => {
+								ui.colored_label(
+									egui::Color32::RED,
+									format!("Error loading {} from memory: {e}", file.name),
+								);
+								return;
 							}
-						} else {
-							ui.label("Couldn't read file");
+						};
+
+						if let Ok(raw_dmi) = dmi::RawDmi::load(bytes_reader) {
+							let new_mwin = UIWindow {
+								id: uuid::Uuid::new_v4(),
+								img: {
+									let h = 100; //(new_mwin.available_height * 1.0) as u32;
+									let w = 100; //(new_mwin.available_width * 1.0) as u32;
+
+									i = i.resize(w, h, image::imageops::FilterType::Nearest);
+									i.write_to(&mut writer, image::ImageFormat::Png).unwrap();
+
+									Some(Rc::new(
+										RetainedImage::from_image_bytes("img", &buffer).unwrap(),
+									))
+								},
+								metadata: Rc::new({
+									ImageMetadata {
+										img_metadata_raw: {
+											if let Some(metadata) = raw_dmi.chunk_ztxt.clone() {
+												Some(metadata)
+											} else {
+												None
+											}
+										},
+										img_metadata_text: {
+											if let Some(metadata) = raw_dmi.chunk_ztxt {
+												MetadataStatus::Meta(Rc::new(RefCell::new(
+													format!("{:#?}", metadata),
+												)))
+											} else {
+												MetadataStatus::NoMeta
+											}
+										},
+										image_info: Some({
+											let name_str: String;
+											let mut path_str: String = String::new();
+											if let Some(path) = &file.path {
+												path_str = path.display().to_string();
+												if let Some(file_name_osstr) = path.file_name() {
+													name_str = file_name_osstr
+														.to_string_lossy()
+														.into_owned();
+												} else {
+													name_str = "???".to_owned();
+												}
+											} else if !file.name.is_empty() {
+												name_str = file.name.clone();
+											} else {
+												name_str = "???".to_owned();
+											};
+											FileInfo {
+												name: name_str,
+												path: path_str,
+											}
+										}),
+									}
+								}),
+							};
+							self.windows.push(new_mwin);
 						}
 					}
 				}
@@ -198,17 +219,21 @@ impl MetadataTool {
 			// Show dropped files (if any):
 			self.load_files_or_err(ui);
 
-			// Clean the dropped files list as soon as we have an image. Needed to reload a new, future image.
-			if self.img.is_some() {
-				self.dropped_files.clear();
-			}
+			if self.windows.is_empty() {
+				ui.label("No Files Loaded");
+			} else {
+				for window in &self.windows {
+					if window.img.is_some() {
+						// Clean the dropped files list as soon as we have an image. Needed to reload a new, future image.
+						self.dropped_files.clear();
 
-			if self.img.is_some() {
-				if let Some(image_info) = &self.image_info {
-					ui.label("Loaded file:");
-					ui.monospace(&image_info.name);
-				} else {
-					ui.label("Error: No File Info");
+						if let Some(image_info) = &window.metadata.image_info {
+							ui.label("Loaded file:");
+							ui.monospace(&image_info.name);
+						} else {
+							ui.label("Error: No File Info");
+						}
+					}
 				}
 			}
 
@@ -223,20 +248,20 @@ impl MetadataTool {
 		});
 	}
 
-	fn create_image_preview(&mut self, ctx: &egui::Context) {
-		self.create_meta_viewer(ctx);
+	fn create_image_preview(
+		&mut self,
+		ctx: &egui::Context,
+		img: &Option<Rc<RetainedImage>>,
+		metadata: &Rc<ImageMetadata>,
+	) {
+		self.create_meta_viewer(ctx, metadata);
 		egui::CentralPanel::default().show(ctx, |ui| {
-			let image_height = ui.available_height() * 0.70; // image takes up 70% of the height at max
+			let image_height = ui.available_height() * 1.0; // image takes up 70% of the height at max
 			ui.allocate_ui_with_layout(
 				vec2(ui.available_width(), image_height),
-				egui::Layout::top_down(egui::Align::LEFT),
+				egui::Layout::top_down(egui::Align::Center),
 				|ui| {
-					// Get available space for the image
-					self.img_offset = ui.cursor().left_top();
-					self.available_height = ui.available_height();
-					self.available_width = ui.available_width();
-
-					match &self.img {
+					match img {
 						Some(i) => ui.image(i.texture_id(ctx), i.size_vec2()), // Preview
 						_ => {
 							ui.centered_and_justified(|ui| {
@@ -249,15 +274,14 @@ impl MetadataTool {
 			);
 		});
 	}
-
-	fn create_meta_viewer(&mut self, ctx: &egui::Context) {
+	fn create_meta_viewer(&mut self, ctx: &egui::Context, metadata: &Rc<ImageMetadata>) {
 		egui::TopBottomPanel::bottom("gaming").show(ctx, |ui| {
 			ui.allocate_ui_with_layout(
-				vec2(ui.available_width(), ui.available_height() * 0.2),
+				vec2(ui.available_width(), ui.available_height() * 0.8),
 				egui::Layout::left_to_right(egui::Align::Center),
 				|ui| {
 					// Center the content horizontally
-					match &self.img_metadata_text {
+					match &metadata.img_metadata_text {
 						MetadataStatus::Meta(metadata) => {
 							let cloned_metadata = metadata.clone();
 							ui.code_editor(&mut cloned_metadata.as_ref().borrow().as_str());
@@ -266,22 +290,14 @@ impl MetadataTool {
 							ui.code_editor(&mut String::from("No Metadata"));
 						}
 						MetadataStatus::NotLoaded => {
-							ui.code_editor(&mut String::from("Not Loaded"));
+							ui.code_editor(&mut String::from("Nothing Loaded"));
 						}
 					}
-					ui.separator(); // Add a separator between the two code_editor blocks
-					match &self.img_metadata_text {
-						MetadataStatus::Meta(metadata) => {
-							let cloned_metadata = metadata.clone();
-							ui.code_editor(&mut cloned_metadata.as_ref().borrow().as_str());
-						}
-						MetadataStatus::NoMeta => {
-							ui.code_editor(&mut String::from("No Metadata"));
-						}
-						MetadataStatus::NotLoaded => {
-							ui.code_editor(&mut String::from("Not Loaded"));
-						}
+					if ui.button(RichText::new("➡").size(20.0)).clicked() {
+						// TODO: copy data
 					}
+					//TODO: Save and display data
+					ui.code_editor(&mut String::from("Nothing Saved"));
 				},
 			);
 		});
@@ -306,10 +322,16 @@ impl eframe::App for MetadataTool {
 			});
 		});
 
-		self.create_sidebar(ctx);
-		self.create_image_preview(ctx);
+		for mwindow in &self.windows {
+			egui::Window::new("Main thread").show(ctx, |ui| {
+				ui.label("Hello World!");
+				self.create_image_preview(ctx, &mwindow.img, &mwindow.metadata);
+			});
+		}
 
 		Self::preview_files_being_dropped(ctx);
+
+		self.create_sidebar(ctx);
 
 		ctx.input(|i| {
 			if !i.raw.dropped_files.is_empty() {
