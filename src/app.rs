@@ -19,7 +19,7 @@ struct UIWindow {
 struct ImageMetadata {
 	img_metadata_raw: Option<dmi::ztxt::RawZtxtChunk>,
 	img_metadata_text: MetadataStatus,
-	image_info: Option<FileInfo>,
+	image_info: FileInfo,
 }
 
 #[derive(Clone, Default)]
@@ -151,8 +151,8 @@ impl MetadataTool {
 							let new_mwin = UIWindow {
 								id: uuid::Uuid::new_v4(),
 								img: {
-									let h = 100; //(new_mwin.available_height * 1.0) as u32;
-									let w = 100; //(new_mwin.available_width * 1.0) as u32;
+									let h = (ui.available_height() * 2.0) as u32;
+									let w = (ui.available_width() * 2.0) as u32;
 
 									i = i.resize(w, h, image::imageops::FilterType::Nearest);
 									i.write_to(&mut writer, image::ImageFormat::Png).unwrap();
@@ -163,23 +163,18 @@ impl MetadataTool {
 								},
 								metadata: Rc::new({
 									ImageMetadata {
-										img_metadata_raw: {
-											if let Some(metadata) = raw_dmi.chunk_ztxt.clone() {
-												Some(metadata)
-											} else {
-												None
-											}
-										},
+										img_metadata_raw: { raw_dmi.chunk_ztxt.clone() },
 										img_metadata_text: {
-											if let Some(metadata) = raw_dmi.chunk_ztxt {
-												MetadataStatus::Meta(Rc::new(RefCell::new(
-													format!("{:#?}", metadata),
-												)))
-											} else {
-												MetadataStatus::NoMeta
-											}
+											raw_dmi.chunk_ztxt.map_or(
+												MetadataStatus::NoMeta,
+												|metadata| {
+													MetadataStatus::Meta(Rc::new(RefCell::new(
+														format!("{:#?}", metadata),
+													)))
+												},
+											)
 										},
-										image_info: Some({
+										image_info: {
 											let name_str: String;
 											let mut path_str: String = String::new();
 											if let Some(path) = &file.path {
@@ -200,7 +195,7 @@ impl MetadataTool {
 												name: name_str,
 												path: path_str,
 											}
-										}),
+										},
 									}
 								}),
 							};
@@ -227,12 +222,8 @@ impl MetadataTool {
 						// Clean the dropped files list as soon as we have an image. Needed to reload a new, future image.
 						self.dropped_files.clear();
 
-						if let Some(image_info) = &window.metadata.image_info {
-							ui.label("Loaded file:");
-							ui.monospace(&image_info.name);
-						} else {
-							ui.label("Error: No File Info");
-						}
+						ui.label("Loaded file:");
+						ui.monospace(&window.metadata.image_info.name);
 					}
 				}
 			}
@@ -323,10 +314,11 @@ impl eframe::App for MetadataTool {
 		});
 
 		for mwindow in &self.windows {
-			egui::Window::new("Main thread").show(ctx, |ui| {
-				ui.label("Hello World!");
-				self.create_image_preview(ctx, &mwindow.img, &mwindow.metadata);
-			});
+			egui::Window::new(&mwindow.metadata.image_info.name)
+				.id(mwindow.id.to_string().into())
+				.show(ctx, |ui| {
+					create_image_preview(mwindow, ui, ctx);
+				});
 		}
 
 		Self::preview_files_being_dropped(ctx);
@@ -339,4 +331,61 @@ impl eframe::App for MetadataTool {
 			}
 		});
 	}
+}
+
+fn create_image_preview(mwindow: &UIWindow, ui: &mut egui::Ui, ctx: &egui::Context) {
+	{
+		let img = &mwindow.img;
+		let metadata = &mwindow.metadata;
+		create_meta_viewer(mwindow, ui, metadata);
+
+		egui::CentralPanel::default().show_inside(ui, |ui| {
+			let image_height = ui.available_height() * 1.0; // image takes up 70% of the height at max
+			ui.allocate_ui_with_layout(
+				vec2(ui.available_width(), image_height),
+				egui::Layout::top_down(egui::Align::Center),
+				|ui| {
+					match img {
+						Some(i) => ui.image(i.texture_id(ctx), i.size_vec2()), // Preview
+						_ => {
+							ui.centered_and_justified(|ui| {
+								ui.heading(RichText::new("Drop file here").strong())
+							})
+							.response
+						} // No image
+					};
+				},
+			);
+		});
+	};
+}
+
+fn create_meta_viewer(mwindow: &UIWindow, ui: &mut egui::Ui, metadata: &Rc<ImageMetadata>) {
+	{
+		egui::TopBottomPanel::bottom(format!("{}_meta", mwindow.id)).show_inside(ui, |ui| {
+			ui.allocate_ui_with_layout(
+				vec2(ui.available_width(), ui.available_height() * 0.8),
+				egui::Layout::left_to_right(egui::Align::Center),
+				|ui| {
+					egui::CollapsingHeader::new("Metadata").show(ui, |ui| {
+						if ui.button(RichText::new("Copy").size(20.0)).clicked() {
+							// TODO: copy data
+						}
+						match &metadata.img_metadata_text {
+							MetadataStatus::Meta(metadata) => {
+								let cloned_metadata = metadata.clone();
+								ui.code_editor(&mut cloned_metadata.as_ref().borrow().as_str());
+							}
+							MetadataStatus::NoMeta => {
+								ui.code_editor(&mut String::from("No Metadata"));
+							}
+							MetadataStatus::NotLoaded => {
+								ui.code_editor(&mut String::from("Error: Nothing Loaded"));
+							}
+						}
+					});
+				},
+			);
+		});
+	};
 }
