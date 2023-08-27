@@ -1,6 +1,6 @@
 {
-	"name": "egui Template PWA",
-	"short_name": "egui-template-pwa",
+	"name": "MetaYoinker PWA",
+	"short_name": "meta-yoinker",
 	"icons": [
 		{
 			"src": "./icon-32.png",
