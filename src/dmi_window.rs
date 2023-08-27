@@ -1,5 +1,5 @@
 use crate::app::{CopiedMetadata, MetadataStatus, GLOB_COPIED_METADATA};
-use egui::{vec2, RichText};
+use egui::{text::LayoutJob, vec2, RichText, TextFormat};
 use egui_extras::RetainedImage;
 use egui_toast::{Toast, ToastKind, ToastOptions, Toasts};
 use std::rc::Rc;
@@ -66,17 +66,35 @@ pub fn create_meta_viewer(
 						});
 					}
 				}
-				egui::CollapsingHeader::new("Metadata").show(ui, |ui| {
+				let mut metadata_text = LayoutJob::default();
+				metadata_text.append("Metadata:", 0.0, TextFormat::default());
+				if metadata.img_metadata_raw.is_some() {
+					metadata_text.append(
+						"Yes",
+						1.0,
+						TextFormat {
+							color: egui::Color32::LIGHT_GREEN,
+							..TextFormat::default()
+						},
+					);
+				} else {
+					metadata_text.append(
+						"None",
+						1.0,
+						TextFormat {
+							color: egui::Color32::LIGHT_RED,
+							..TextFormat::default()
+						},
+					);
+				};
+				egui::CollapsingHeader::new(metadata_text).show(ui, |ui| {
 					egui::ScrollArea::vertical().show(ui, |ui| match &metadata.img_metadata_text {
 						MetadataStatus::Meta(metadata) => {
 							let cloned_metadata = metadata.clone();
 							ui.code_editor(&mut cloned_metadata.as_ref().borrow().as_str());
 						}
 						MetadataStatus::NoMeta => {
-							ui.code_editor(&mut String::from("No Metadata"));
-						}
-						MetadataStatus::NotLoaded => {
-							ui.code_editor(&mut String::from("Error: Nothing Loaded"));
+							ui.label("No Metadata!");
 						}
 					});
 				});

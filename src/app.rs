@@ -25,7 +25,6 @@ pub struct CopiedMetadata {
 #[derive(Clone, Default)]
 pub enum MetadataStatus {
 	#[default]
-	NotLoaded,
 	NoMeta,
 	Meta(Rc<RefCell<String>>),
 }
