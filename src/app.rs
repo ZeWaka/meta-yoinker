@@ -6,6 +6,7 @@ use std::{cell::RefCell, io::Cursor, rc::Rc};
 pub struct MetadataTool {
 	windows: Vec<UIWindow>,
 	dropped_files: Vec<egui::DroppedFile>,
+	copied_metadata: Option<CopiedMetadata>,
 }
 
 #[derive(Default)]
@@ -259,6 +260,7 @@ impl eframe::App for MetadataTool {
 				egui::Window::new(&mwindow.metadata.image_info.name)
 					.id(mwindow.id.to_string().into())
 					.show(ctx, |ui| {
+						create_meta_viewer(mwindow, ui, &mwindow.metadata);
 						create_image_preview(mwindow, ui, ctx);
 					});
 			}
@@ -277,58 +279,50 @@ impl eframe::App for MetadataTool {
 }
 
 fn create_image_preview(mwindow: &UIWindow, ui: &mut egui::Ui, ctx: &egui::Context) {
-	{
-		let img = &mwindow.img;
-		let metadata = &mwindow.metadata;
-		create_meta_viewer(mwindow, ui, metadata);
-
-		egui::CentralPanel::default().show_inside(ui, |ui| {
-			let image_height = ui.available_height() * 1.0; // image takes up 70% of the height at max
-			ui.allocate_ui_with_layout(
-				vec2(ui.available_width(), image_height),
-				egui::Layout::top_down(egui::Align::Center),
-				|ui| {
-					match img {
-						Some(i) => ui.image(i.texture_id(ctx), i.size_vec2()), // Preview
-						_ => {
-							ui.centered_and_justified(|ui| {
-								ui.heading(RichText::new("Drop file here").strong())
-							})
-							.response
-						} // No image
-					};
-				},
-			);
-		});
-	};
+	egui::CentralPanel::default().show_inside(ui, |ui| {
+		let image_height = ui.available_height() * 1.0; // image takes up 70% of the height at max
+		ui.allocate_ui_with_layout(
+			vec2(ui.available_width(), image_height),
+			egui::Layout::top_down(egui::Align::Center),
+			|ui| {
+				match &mwindow.img {
+					Some(i) => ui.image(i.texture_id(ctx), i.size_vec2()), // Preview
+					_ => {
+						ui.centered_and_justified(|ui| {
+							ui.heading(RichText::new("Drop file here").strong())
+						})
+						.response
+					} // No image
+				};
+			},
+		);
+	});
 }
 
 fn create_meta_viewer(mwindow: &UIWindow, ui: &mut egui::Ui, metadata: &Rc<ImageMetadata>) {
-	{
-		egui::TopBottomPanel::bottom(format!("{}_meta", mwindow.id)).show_inside(ui, |ui| {
-			ui.allocate_ui_with_layout(
-				vec2(ui.available_width(), ui.available_height() * 0.8),
-				egui::Layout::left_to_right(egui::Align::Center),
-				|ui| {
-					egui::CollapsingHeader::new("Metadata").show(ui, |ui| {
-						if ui.button(RichText::new("Copy").size(20.0)).clicked() {
-							// TODO: copy data
+	egui::TopBottomPanel::bottom(format!("{}_meta", mwindow.id)).show_inside(ui, |ui| {
+		ui.allocate_ui_with_layout(
+			vec2(ui.available_width(), ui.available_height() * 0.8),
+			egui::Layout::left_to_right(egui::Align::Center),
+			|ui| {
+				egui::CollapsingHeader::new("Metadata").show(ui, |ui| {
+					if ui.button(RichText::new("Copy").size(20.0)).clicked() {
+						// TODO: copy data
+					}
+					match &metadata.img_metadata_text {
+						MetadataStatus::Meta(metadata) => {
+							let cloned_metadata = metadata.clone();
+							ui.code_editor(&mut cloned_metadata.as_ref().borrow().as_str());
 						}
-						match &metadata.img_metadata_text {
-							MetadataStatus::Meta(metadata) => {
-								let cloned_metadata = metadata.clone();
-								ui.code_editor(&mut cloned_metadata.as_ref().borrow().as_str());
-							}
-							MetadataStatus::NoMeta => {
-								ui.code_editor(&mut String::from("No Metadata"));
-							}
-							MetadataStatus::NotLoaded => {
-								ui.code_editor(&mut String::from("Error: Nothing Loaded"));
-							}
+						MetadataStatus::NoMeta => {
+							ui.code_editor(&mut String::from("No Metadata"));
 						}
-					});
-				},
-			);
-		});
-	};
+						MetadataStatus::NotLoaded => {
+							ui.code_editor(&mut String::from("Error: Nothing Loaded"));
+						}
+					}
+				});
+			},
+		);
+	});
 }
