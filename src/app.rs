@@ -279,21 +279,15 @@ impl eframe::App for MetadataTool {
 }
 
 fn create_image_preview(mwindow: &UIWindow, ui: &mut egui::Ui, ctx: &egui::Context) {
-	egui::CentralPanel::default().show_inside(ui, |ui| {
-		let image_height = ui.available_height() * 1.0; // image takes up 70% of the height at max
+	egui::TopBottomPanel::top(format!("{}_img", mwindow.id)).show_inside(ui, |ui| {
 		ui.allocate_ui_with_layout(
-			vec2(ui.available_width(), image_height),
+			vec2(ui.available_width(), ui.available_height()),
 			egui::Layout::top_down(egui::Align::Center),
 			|ui| {
-				match &mwindow.img {
-					Some(i) => ui.image(i.texture_id(ctx), i.size_vec2()), // Preview
-					_ => {
-						ui.centered_and_justified(|ui| {
-							ui.heading(RichText::new("Drop file here").strong())
-						})
-						.response
-					} // No image
-				};
+				mwindow.img.as_ref().map_or_else(
+					|| unreachable!(),
+					|i| ui.image(i.texture_id(ctx), i.size_vec2()),
+				);
 			},
 		);
 	});
@@ -302,7 +296,7 @@ fn create_image_preview(mwindow: &UIWindow, ui: &mut egui::Ui, ctx: &egui::Conte
 fn create_meta_viewer(mwindow: &UIWindow, ui: &mut egui::Ui, metadata: &Rc<ImageMetadata>) {
 	egui::TopBottomPanel::bottom(format!("{}_meta", mwindow.id)).show_inside(ui, |ui| {
 		ui.allocate_ui_with_layout(
-			vec2(ui.available_width(), ui.available_height() * 0.8),
+			vec2(ui.available_width(), ui.available_height()),
 			egui::Layout::left_to_right(egui::Align::Center),
 			|ui| {
 				egui::CollapsingHeader::new("Metadata").show(ui, |ui| {
