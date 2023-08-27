@@ -8,7 +8,7 @@ fn main() -> eframe::Result<()> {
 
 	let native_options = eframe::NativeOptions::default();
 	eframe::run_native(
-		"DMI Metadata Tool",
+		"MetaYoinker",
 		native_options,
 		Box::new(|cc| Box::new(meta_yoinker::MetadataTool::new(cc))),
 	)
