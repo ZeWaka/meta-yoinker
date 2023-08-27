@@ -191,46 +191,50 @@ impl MetadataTool {
 				}
 			}
 
-			ui.vertical_centered(|ui| {
-				egui::Frame::none()
-					.stroke(Stroke {
-						width: 1.0,
-						color: {
-							let meta_guard = GLOB_COPIED_METADATA.lock();
-							if (*meta_guard).is_some() {
-								egui::Color32::LIGHT_GREEN
-							} else {
-								egui::Color32::LIGHT_RED
-							}
-						},
-					})
-					.rounding(Rounding::same(2.0))
-					.inner_margin(Margin::same(6.0))
-					.show(ui, |ui| {
-						let meta_guard = GLOB_COPIED_METADATA.lock();
-						ui.horizontal(|ui| {
-							ui.heading("Clipboard:");
-							ui.add_enabled_ui(meta_guard.is_some(), |ui| {
-								if ui.button(RichText::new("Clear").size(20.0)).clicked() {
-									//
-								}
-							});
-						});
-
-						if let Some(meta) = &*meta_guard {
-							ui.label(meta.orig_file.clone());
-						} else {
-							ui.label(RichText::new("None").color(egui::Color32::LIGHT_RED));
-						}
-					});
-			});
-
 			ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
 				ui.label("Made by ZeWaka");
 				ui.horizontal(|ui| {
 					ui.hyperlink_to("GitHub", env!("CARGO_PKG_REPOSITORY"));
 					egui::global_dark_light_mode_buttons(ui);
-				})
+				});
+
+				//ui.add_space(10.0);
+				ui.with_layout(egui::Layout::bottom_up(egui::Align::Center), |ui| {
+					egui::Frame::default()
+						.stroke(Stroke {
+							width: 1.0,
+							color: {
+								let meta_guard = GLOB_COPIED_METADATA.lock();
+								if (*meta_guard).is_some() {
+									egui::Color32::LIGHT_GREEN
+								} else {
+									egui::Color32::LIGHT_RED
+								}
+							},
+						})
+						.rounding(Rounding::same(2.0))
+						.inner_margin(Margin::same(6.0))
+						.show(ui, |ui| {
+							let meta_g = GLOB_COPIED_METADATA.lock();
+							let meta_guard = &*meta_g;
+							if let Some(meta) = meta_guard {
+								ui.label(meta.orig_file.clone());
+							} else {
+								ui.label(RichText::new("None").color(egui::Color32::LIGHT_RED));
+							}
+							ui.add_space(5.0);
+							let has_meta_in_clipboard = meta_guard.is_some();
+							drop(meta_g); // Release the lock
+							ui.horizontal(|ui| {
+								ui.heading("Clipboard:");
+								ui.add_enabled_ui(has_meta_in_clipboard, |ui| {
+									if ui.button(RichText::new("Clear").size(20.0)).clicked() {
+										*GLOB_COPIED_METADATA.lock() = None;
+									}
+								});
+							});
+						});
+				});
 			});
 		});
 	}
