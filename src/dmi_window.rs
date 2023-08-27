@@ -1,4 +1,7 @@
-use crate::app::{CopiedMetadata, MetadataStatus, GLOB_COPIED_METADATA};
+use crate::{
+	app::{CopiedMetadata, GLOB_COPIED_METADATA},
+	metadata::ImageMetadata,
+};
 use egui::{text::LayoutJob, vec2, RichText, TextFormat};
 use egui_extras::RetainedImage;
 use egui_toast::{Toast, ToastKind, ToastOptions, Toasts};
@@ -9,16 +12,6 @@ pub struct UIWindow {
 	pub img: Option<Rc<RetainedImage>>,
 	pub metadata: Rc<ImageMetadata>,
 	pub is_open: bool,
-}
-
-pub struct ImageMetadata {
-	pub img_metadata_raw: Option<dmi::ztxt::RawZtxtChunk>,
-	pub img_metadata_text: MetadataStatus,
-	pub image_info: FileInfo,
-}
-
-pub struct FileInfo {
-	pub name: String,
 }
 
 pub fn create_image_preview(mwindow: &UIWindow, ui: &mut egui::Ui, ctx: &egui::Context) {
@@ -82,10 +75,10 @@ pub fn create_meta_viewer(
 				};
 				egui::CollapsingHeader::new(metadata_text).show(ui, |ui| {
 					egui::ScrollArea::vertical().show(ui, |ui| match &metadata.img_metadata_text {
-						MetadataStatus::Meta(metadata) => {
+						Some(metadata) => {
 							ui.code_editor(&mut metadata.to_string());
 						}
-						MetadataStatus::NoMeta => {
+						None => {
 							ui.label("No Metadata!");
 						}
 					});

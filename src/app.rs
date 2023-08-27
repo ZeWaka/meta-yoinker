@@ -1,5 +1,6 @@
-use crate::dmi_window::{
-	create_image_preview, create_meta_viewer, FileInfo, ImageMetadata, UIWindow,
+use crate::{
+	dmi_window::{create_image_preview, create_meta_viewer, UIWindow},
+	metadata::extract_metadata,
 };
 use egui::{
 	mutex::Mutex, Align2, DroppedFile, FontId, Margin, RichText, Rounding, Stroke, TextStyle,
@@ -21,13 +22,6 @@ pub static GLOB_COPIED_METADATA: once_cell::sync::Lazy<Mutex<Option<CopiedMetada
 pub struct CopiedMetadata {
 	pub orig_file: String,
 	pub metadata: dmi::ztxt::RawZtxtChunk,
-}
-
-#[derive(Clone, Default)]
-pub enum MetadataStatus {
-	#[default]
-	NoMeta,
-	Meta(String),
 }
 
 fn configure_text_styles(ctx: &egui::Context) {
@@ -159,36 +153,7 @@ impl MetadataTool {
 										RetainedImage::from_image_bytes("img", &buffer).unwrap(),
 									))
 								},
-								metadata: Rc::new({
-									ImageMetadata {
-										img_metadata_raw: { raw_dmi.chunk_ztxt.clone() },
-										img_metadata_text: {
-											raw_dmi.chunk_ztxt.map_or(
-												MetadataStatus::NoMeta,
-												|metadata| {
-													MetadataStatus::Meta(format!("{:#?}", metadata))
-												},
-											)
-										},
-										image_info: {
-											let name_str: String;
-											if let Some(path) = &file.path {
-												if let Some(file_name_osstr) = path.file_name() {
-													name_str = file_name_osstr
-														.to_string_lossy()
-														.into_owned();
-												} else {
-													name_str = "???".to_owned();
-												}
-											} else if !file.name.is_empty() {
-												name_str = file.name.clone();
-											} else {
-												name_str = "???".to_owned();
-											};
-											FileInfo { name: name_str }
-										},
-									}
-								}),
+								metadata: Rc::new(extract_metadata(raw_dmi, file)),
 								is_open: true,
 							};
 							self.windows.push(new_mwin);

@@ -2,4 +2,5 @@
 
 mod app;
 mod dmi_window;
+mod metadata;
 pub use app::MetadataTool;
