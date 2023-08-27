@@ -5,7 +5,7 @@ use egui::{
 	mutex::Mutex, Align2, DroppedFile, FontId, Margin, RichText, Rounding, Stroke, TextStyle,
 };
 use egui_extras::RetainedImage;
-use std::{cell::RefCell, io::Cursor, rc::Rc};
+use std::{io::Cursor, rc::Rc};
 
 #[derive(Default)]
 pub struct MetadataTool {
@@ -27,7 +27,7 @@ pub struct CopiedMetadata {
 pub enum MetadataStatus {
 	#[default]
 	NoMeta,
-	Meta(Rc<RefCell<String>>),
+	Meta(String),
 }
 
 fn configure_text_styles(ctx: &egui::Context) {
@@ -166,9 +166,7 @@ impl MetadataTool {
 											raw_dmi.chunk_ztxt.map_or(
 												MetadataStatus::NoMeta,
 												|metadata| {
-													MetadataStatus::Meta(Rc::new(RefCell::new(
-														format!("{:#?}", metadata),
-													)))
+													MetadataStatus::Meta(format!("{:#?}", metadata))
 												},
 											)
 										},

@@ -83,8 +83,7 @@ pub fn create_meta_viewer(
 				egui::CollapsingHeader::new(metadata_text).show(ui, |ui| {
 					egui::ScrollArea::vertical().show(ui, |ui| match &metadata.img_metadata_text {
 						MetadataStatus::Meta(metadata) => {
-							let cloned_metadata = metadata.clone();
-							ui.code_editor(&mut cloned_metadata.as_ref().borrow().as_str());
+							ui.code_editor(&mut metadata.to_string());
 						}
 						MetadataStatus::NoMeta => {
 							ui.label("No Metadata!");
