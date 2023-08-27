@@ -228,8 +228,8 @@ impl MetadataTool {
 			ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
 				ui.label("Made by ZeWaka");
 				ui.horizontal(|ui| {
-					egui::global_dark_light_mode_switch(ui);
 					ui.hyperlink_to("GitHub", env!("CARGO_PKG_REPOSITORY"));
+					egui::global_dark_light_mode_buttons(ui);
 				})
 			});
 		});
