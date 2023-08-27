@@ -13,6 +13,7 @@ struct UIWindow {
 	id: uuid::Uuid,
 	img: Option<Rc<RetainedImage>>,
 	metadata: Rc<ImageMetadata>,
+	is_open: bool,
 }
 
 #[derive(Default)]
@@ -20,6 +21,12 @@ struct ImageMetadata {
 	img_metadata_raw: Option<dmi::ztxt::RawZtxtChunk>,
 	img_metadata_text: MetadataStatus,
 	image_info: FileInfo,
+}
+
+#[derive(Default)]
+struct CopiedMetadata {
+	orig_file: String,
+	metadata: dmi::ztxt::RawZtxtChunk,
 }
 
 #[derive(Clone, Default)]
@@ -187,6 +194,7 @@ impl MetadataTool {
 										},
 									}
 								}),
+								is_open: true,
 							};
 							self.windows.push(new_mwin);
 						}
@@ -220,10 +228,9 @@ impl MetadataTool {
 			ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
 				ui.horizontal(|ui| {
 					ui.spacing_mut().item_spacing.x = 0.0;
-					ui.label("Made by ZeWaka (");
-					ui.hyperlink_to("GitHub", env!("CARGO_PKG_REPOSITORY"));
-					ui.label(")");
+					ui.label("Made by ZeWaka");
 				});
+				ui.hyperlink_to("GitHub", env!("CARGO_PKG_REPOSITORY"));
 			});
 		});
 	}
@@ -248,11 +255,13 @@ impl eframe::App for MetadataTool {
 		});
 
 		for mwindow in &self.windows {
-			egui::Window::new(&mwindow.metadata.image_info.name)
-				.id(mwindow.id.to_string().into())
-				.show(ctx, |ui| {
-					create_image_preview(mwindow, ui, ctx);
-				});
+			if mwindow.is_open {
+				egui::Window::new(&mwindow.metadata.image_info.name)
+					.id(mwindow.id.to_string().into())
+					.show(ctx, |ui| {
+						create_image_preview(mwindow, ui, ctx);
+					});
+			}
 		}
 
 		Self::preview_files_being_dropped(ctx);
