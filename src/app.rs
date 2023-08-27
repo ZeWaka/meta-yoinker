@@ -1,9 +1,10 @@
 use crate::dmi_window::{
 	create_image_preview, create_meta_viewer, FileInfo, ImageMetadata, UIWindow,
 };
-use egui::{mutex::Mutex, Align2, DroppedFile, FontFamily, FontId, RichText, TextStyle};
+use egui::{
+	mutex::Mutex, Align2, DroppedFile, FontId, Margin, RichText, Rounding, Stroke, TextStyle,
+};
 use egui_extras::RetainedImage;
-use once_cell::sync::Lazy;
 use std::{cell::RefCell, io::Cursor, rc::Rc};
 
 #[derive(Default)]
@@ -13,8 +14,8 @@ pub struct MetadataTool {
 	pub toasts: egui_toast::Toasts,
 }
 
-pub static GLOB_COPIED_METADATA: Lazy<Mutex<Option<CopiedMetadata>>> =
-	Lazy::new(|| Mutex::new(None));
+pub static GLOB_COPIED_METADATA: once_cell::sync::Lazy<Mutex<Option<CopiedMetadata>>> =
+	once_cell::sync::Lazy::new(|| Mutex::new(None));
 
 #[derive(Default)]
 pub struct CopiedMetadata {
@@ -30,7 +31,7 @@ pub enum MetadataStatus {
 }
 
 fn configure_text_styles(ctx: &egui::Context) {
-	use FontFamily::{Monospace, Proportional};
+	use egui::FontFamily::{Monospace, Proportional};
 
 	let mut style = (*ctx.style()).clone();
 	style.text_styles = [
@@ -227,6 +228,41 @@ impl MetadataTool {
 				}
 			}
 
+			ui.vertical_centered(|ui| {
+				ui.add_space(20.0);
+				egui::Frame::none()
+					.stroke(Stroke {
+						width: 1.0,
+						color: {
+							let meta_guard = GLOB_COPIED_METADATA.lock();
+							if (*meta_guard).is_some() {
+								egui::Color32::LIGHT_GREEN
+							} else {
+								egui::Color32::LIGHT_RED
+							}
+						},
+					})
+					.rounding(Rounding::same(2.0))
+					.inner_margin(Margin::same(10.0))
+					.show(ui, |ui| {
+						let meta_guard = GLOB_COPIED_METADATA.lock();
+						ui.horizontal(|ui| {
+							ui.heading("Clipboard:");
+							ui.add_enabled_ui(meta_guard.is_some(), |ui| {
+								if ui.button(RichText::new("Clear").size(20.0)).clicked() {
+									//
+								}
+							});
+						});
+
+						if let Some(meta) = &*meta_guard {
+							ui.label(meta.orig_file.clone());
+						} else {
+							ui.label(RichText::new("None").color(egui::Color32::LIGHT_RED));
+						}
+					});
+			});
+
 			ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
 				ui.label("Made by ZeWaka");
 				ui.hyperlink_to("GitHub", env!("CARGO_PKG_REPOSITORY"));
@@ -271,7 +307,7 @@ impl eframe::App for MetadataTool {
 		egui::CentralPanel::default().show(ctx, |ui| {
 			ui.centered_and_justified(|ui| {
 				ui.heading(RichText::new("Drag & drop file(s) here").strong())
-			})
+			});
 		});
 
 		ctx.input(|i| {
