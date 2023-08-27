@@ -434,6 +434,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "egui-toast"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "909b366a4a320f075c4c1f8dfcd9b3a91701a437b89575343d000e152060cda3"
+dependencies = [
+ "egui",
+]
+
+[[package]]
 name = "egui-winit"
 version = "0.22.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -942,10 +951,13 @@ dependencies = [
  "dmi",
  "eframe",
  "egui",
+ "egui-toast",
  "egui_extras",
  "env_logger",
  "image",
+ "lazy_static",
  "log",
+ "once_cell",
  "uuid",
  "wasm-bindgen-futures",
 ]

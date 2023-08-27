@@ -1,21 +1,25 @@
 use crate::dmi_window::{
 	create_image_preview, create_meta_viewer, FileInfo, ImageMetadata, UIWindow,
 };
-use egui::{DroppedFile, FontFamily, FontId, TextStyle};
+use egui::{mutex::Mutex, Align2, DroppedFile, FontFamily, FontId, RichText, TextStyle};
 use egui_extras::RetainedImage;
+use once_cell::sync::Lazy;
 use std::{cell::RefCell, io::Cursor, rc::Rc};
 
 #[derive(Default)]
 pub struct MetadataTool {
 	windows: Vec<UIWindow>,
 	dropped_files: Vec<egui::DroppedFile>,
-	copied_metadata: Option<CopiedMetadata>,
+	pub toasts: egui_toast::Toasts,
 }
 
+pub static GLOB_COPIED_METADATA: Lazy<Mutex<Option<CopiedMetadata>>> =
+	Lazy::new(|| Mutex::new(None));
+
 #[derive(Default)]
-struct CopiedMetadata {
-	orig_file: String,
-	metadata: dmi::ztxt::RawZtxtChunk,
+pub struct CopiedMetadata {
+	pub orig_file: String,
+	pub metadata: dmi::ztxt::RawZtxtChunk,
 }
 
 #[derive(Clone, Default)]
@@ -48,11 +52,20 @@ impl MetadataTool {
 		// This is also where you can customize the look and feel of egui using
 		// `cc.egui_ctx.set_visuals` and `cc.egui_ctx.set_fonts`.
 		configure_text_styles(&cc.egui_ctx);
-		Self::default()
+
+		let toasts = egui_toast::Toasts::new()
+			.anchor(Align2::RIGHT_BOTTOM, (-10.0, -10.0)) // 10 units from the bottom right corner
+			.direction(egui::Direction::BottomUp);
+
+		Self {
+			windows: Vec::new(),
+			dropped_files: Vec::new(),
+			toasts,
+		}
 	}
 
 	fn preview_files_being_dropped(ctx: &egui::Context) {
-		use egui::{Align2, Color32, Id, LayerId, Order};
+		use egui::{Color32, Id, LayerId, Order};
 
 		// Preview hovering files:
 		if ctx.input(|i| i.raw.hovered_files.is_empty()) {
@@ -198,22 +211,25 @@ impl MetadataTool {
 			if self.windows.is_empty() {
 				ui.label("No Files Loaded");
 			} else {
+				ui.label(
+					(if self.windows.len() > 1 {
+						"Loaded files:"
+					} else {
+						"Loaded file:"
+					})
+					.to_string(),
+				);
+				// Clean the dropped files list as soon as we have an image. Needed to reload a new, future image.
+				self.dropped_files.clear();
 				for window in &self.windows {
 					if window.img.is_some() {
-						// Clean the dropped files list as soon as we have an image. Needed to reload a new, future image.
-						self.dropped_files.clear();
-
-						ui.label("Loaded file:");
 						ui.monospace(&window.metadata.image_info.name);
 					}
 				}
 			}
 
 			ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
-				ui.horizontal(|ui| {
-					ui.spacing_mut().item_spacing.x = 0.0;
-					ui.label("Made by ZeWaka");
-				});
+				ui.label("Made by ZeWaka");
 				ui.hyperlink_to("GitHub", env!("CARGO_PKG_REPOSITORY"));
 			});
 		});
@@ -243,7 +259,7 @@ impl eframe::App for MetadataTool {
 				egui::Window::new(&mwindow.metadata.image_info.name)
 					.id(mwindow.id.to_string().into())
 					.show(ctx, |ui| {
-						create_meta_viewer(mwindow, ui, &mwindow.metadata);
+						create_meta_viewer(mwindow, ui, &mwindow.metadata, &mut self.toasts);
 						create_image_preview(mwindow, ui, ctx);
 					});
 			}
@@ -253,10 +269,18 @@ impl eframe::App for MetadataTool {
 
 		self.create_sidebar(ctx);
 
+		egui::CentralPanel::default().show(ctx, |ui| {
+			ui.centered_and_justified(|ui| {
+				ui.heading(RichText::new("Drag & drop file(s) here").strong())
+			})
+		});
+
 		ctx.input(|i| {
 			if !i.raw.dropped_files.is_empty() {
 				self.dropped_files = i.raw.dropped_files.clone();
 			}
 		});
+
+		self.toasts.show(ctx)
 	}
 }
