@@ -133,7 +133,7 @@ impl MetadataTool {
 							Err(e) => {
 								ui.colored_label(
 									egui::Color32::RED,
-									format!("Error loading {} from memory: {e}", file.name),
+									format!("Error loading {}: {e}", file.name),
 								);
 								return;
 							}
@@ -192,7 +192,6 @@ impl MetadataTool {
 			}
 
 			ui.vertical_centered(|ui| {
-				ui.add_space(20.0);
 				egui::Frame::none()
 					.stroke(Stroke {
 						width: 1.0,
@@ -206,7 +205,7 @@ impl MetadataTool {
 						},
 					})
 					.rounding(Rounding::same(2.0))
-					.inner_margin(Margin::same(10.0))
+					.inner_margin(Margin::same(6.0))
 					.show(ui, |ui| {
 						let meta_guard = GLOB_COPIED_METADATA.lock();
 						ui.horizontal(|ui| {
@@ -228,7 +227,10 @@ impl MetadataTool {
 
 			ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
 				ui.label("Made by ZeWaka");
-				ui.hyperlink_to("GitHub", env!("CARGO_PKG_REPOSITORY"));
+				ui.horizontal(|ui| {
+					egui::global_dark_light_mode_switch(ui);
+					ui.hyperlink_to("GitHub", env!("CARGO_PKG_REPOSITORY"));
+				})
 			});
 		});
 	}

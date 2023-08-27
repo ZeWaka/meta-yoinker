@@ -22,7 +22,7 @@ pub fn create_image_preview(mwindow: &UIWindow, ui: &mut egui::Ui, ctx: &egui::C
 			|ui| {
 				mwindow.img.as_ref().map_or_else(
 					|| unreachable!(),
-					|i| ui.image(i.texture_id(ctx), i.size_vec2()),
+					|i| ui.image(i.texture_id(ctx), i.size_vec2() * 0.9), // display image w/ margin
 				);
 			},
 		);
