@@ -47,31 +47,24 @@ pub fn create_meta_viewer(
 			vec2(ui.available_width(), ui.available_height()),
 			egui::Layout::left_to_right(egui::Align::Center),
 			|ui| {
-				if ui.button(RichText::new("Copy").size(20.0)).clicked() {
-					if let Some(raw_meta) = &metadata.img_metadata_raw {
-						let new_meta = {
-							Some(CopiedMetadata {
-								orig_file: metadata.image_info.name.clone(),
-								metadata: raw_meta.clone(),
-							})
-						};
-						*GLOB_COPIED_METADATA.lock() = new_meta;
-						toasts.add(Toast {
-							text: format!("Copied metadata for {}", metadata.image_info.name)
-								.into(),
-							kind: ToastKind::Success,
-							options: ToastOptions::default()
-								.duration_in_seconds(2.0)
-								.show_progress(true),
-						});
+				ui.add_enabled_ui(metadata.img_metadata_raw.is_some(), |ui| {
+					if ui.button(RichText::new("Copy").size(20.0)).clicked() {
+						copy_metadata(metadata, toasts);
 					}
-				}
+				});
+
+				ui.add_enabled_ui(GLOB_COPIED_METADATA.lock().is_some(), |ui| {
+					if ui.button(RichText::new("Paste").size(20.0)).clicked() {
+						//copy_metadata(metadata, toasts);
+					}
+				});
+
 				let mut metadata_text = LayoutJob::default();
 				metadata_text.append("Metadata:", 0.0, TextFormat::default());
 				if metadata.img_metadata_raw.is_some() {
 					metadata_text.append(
 						"Yes",
-						1.0,
+						2.0,
 						TextFormat {
 							color: egui::Color32::LIGHT_GREEN,
 							..TextFormat::default()
@@ -80,7 +73,7 @@ pub fn create_meta_viewer(
 				} else {
 					metadata_text.append(
 						"None",
-						1.0,
+						2.0,
 						TextFormat {
 							color: egui::Color32::LIGHT_RED,
 							..TextFormat::default()
@@ -101,4 +94,23 @@ pub fn create_meta_viewer(
 			},
 		);
 	});
+}
+
+fn copy_metadata(metadata: &Rc<ImageMetadata>, toasts: &mut Toasts) {
+	if let Some(raw_meta) = &metadata.img_metadata_raw {
+		let new_meta = {
+			Some(CopiedMetadata {
+				orig_file: metadata.image_info.name.clone(),
+				metadata: raw_meta.clone(),
+			})
+		};
+		*GLOB_COPIED_METADATA.lock() = new_meta;
+		toasts.add(Toast {
+			text: format!("Copied metadata for {}", metadata.image_info.name).into(),
+			kind: ToastKind::Success,
+			options: ToastOptions::default()
+				.duration_in_seconds(2.0)
+				.show_progress(true),
+		});
+	}
 }
