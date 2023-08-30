@@ -15,7 +15,7 @@ rust-version = "1.71"
 dmi = "0.3.0"
 egui = "0.22.0"
 egui_extras = { version = "0.22.0", features = ["image"] }
-egui-toast = "0.8.0"
+egui-toast = "0.8.1"
 image = { version = "0.24.7", default-features = false, features = ["png"] }
 eframe = { version = "0.22.0", default-features = false, features = [
 	#"accesskit",     # Make egui comptaible with screen readers. NOTE: adds a lot of dependencies.
