@@ -1,5 +1,5 @@
 use crate::{
-	dmi_window::{create_image_preview, create_meta_viewer, UIWindow},
+	image_window::{create_image_preview, create_meta_viewer, ImageWindow},
 	metadata::ImageMetadata,
 	sidebar::create_sidebar,
 };
@@ -10,7 +10,7 @@ use std::{cell::RefCell, io::Cursor, rc::Rc};
 
 #[derive(Default)]
 pub struct MetadataTool {
-	pub windows: Vec<UIWindow>,
+	pub windows: Vec<ImageWindow>,
 	pub dropped_files: Vec<egui::DroppedFile>,
 	pub toasts: egui_toast::Toasts,
 }
@@ -40,6 +40,11 @@ impl MetadataTool {
 		// This is also where you can customize the look and feel of egui using
 		// `cc.egui_ctx.set_visuals` and `cc.egui_ctx.set_fonts`.
 		configure_text_styles(&cc.egui_ctx);
+
+		let mut fonts = egui::FontDefinitions::default();
+		egui_phosphor::add_to_fonts(&mut fonts, egui_phosphor::Variant::Regular);
+
+		cc.egui_ctx.set_fonts(fonts);
 
 		let toasts = egui_toast::Toasts::new()
 			.anchor(Align2::RIGHT_BOTTOM, (-10.0, -10.0)) // 10 units from the bottom right corner
@@ -132,7 +137,7 @@ impl MetadataTool {
 						};
 
 						if let Ok(raw_dmi) = dmi::RawDmi::load(bytes_reader) {
-							let new_mwin = UIWindow {
+							let new_mwin = ImageWindow {
 								id: uuid::Uuid::new_v4(),
 								img: {
 									let h = (ui.available_height() * 2.0) as u32;

@@ -1,7 +1,7 @@
 use egui::DroppedFile;
 use std::fmt::Display;
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct ImageMetadata {
 	pub img_metadata_raw: Option<dmi::ztxt::RawZtxtChunk>,
 	pub file_name: String,
