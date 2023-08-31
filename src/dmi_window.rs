@@ -95,7 +95,7 @@ fn copy_metadata(metadata: &Rc<ImageMetadata>, toasts: &RefCell<&mut Toasts>) {
 			text: format!("Copied metadata for {}", metadata.file_name).into(),
 			kind: ToastKind::Success,
 			options: ToastOptions::default()
-				.duration_in_seconds(2.0)
+				.duration_in_seconds(1.5)
 				.show_progress(true),
 		});
 	}

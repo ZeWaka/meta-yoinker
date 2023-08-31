@@ -32,15 +32,16 @@ pub fn create_sidebar(app: &mut MetadataTool, ctx: &egui::Context) {
 
 		ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
 			ui.horizontal(|ui| {
-				ui.label("Made by");
-				ui.hyperlink_to("ZeWaka", "https://zewaka.webcam");
+				ui.spacing_mut().item_spacing.x = 0.0;
+				ui.label("Made by ZeWaka ");
+				ui.hyperlink_to("(GitHub)", env!("CARGO_PKG_REPOSITORY"));
 			});
 
-			ui.horizontal(|ui| {
-				ui.hyperlink_to("GitHub", env!("CARGO_PKG_REPOSITORY"));
-				egui::global_dark_light_mode_buttons(ui);
-			});
+			egui::global_dark_light_mode_buttons(ui);
 
+			ui.add_space(10.0);
+			ui.separator();
+			ui.add_space(10.0);
 			ui.with_layout(egui::Layout::bottom_up(egui::Align::Center), |ui| {
 				egui::Frame::default()
 					.stroke(Stroke {
@@ -84,9 +85,9 @@ pub fn create_sidebar(app: &mut MetadataTool, ctx: &egui::Context) {
 fn clear_meta_clipboard(toasts: &mut Toasts) {
 	toasts.add(Toast {
 		text: "Cleared clipboard".into(),
-		kind: ToastKind::Success,
+		kind: ToastKind::Info,
 		options: ToastOptions::default()
-			.duration_in_seconds(2.0)
+			.duration_in_seconds(1.5)
 			.show_progress(true),
 	});
 	*GLOB_COPIED_METADATA.lock() = None;
