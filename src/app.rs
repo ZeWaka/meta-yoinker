@@ -152,7 +152,7 @@ impl MetadataTool {
 									))
 								},
 								metadata: Rc::new(extract_metadata(raw_dmi, file)),
-								is_open: true,
+								is_open: RefCell::new(true),
 							};
 							self.windows.push(new_mwin);
 						}
@@ -185,14 +185,13 @@ impl eframe::App for MetadataTool {
 		let tst = RefCell::new(&mut self.toasts);
 
 		for mwindow in &self.windows {
-			if mwindow.is_open {
-				egui::Window::new(&mwindow.metadata.image_info.name)
-					.id(mwindow.id.to_string().into())
-					.show(ctx, |ui| {
-						create_meta_viewer(mwindow, ui, &mwindow.metadata, &tst);
-						create_image_preview(mwindow, ui, ctx);
-					});
-			}
+			egui::Window::new(&mwindow.metadata.image_info.name)
+				.id(mwindow.id.to_string().into())
+				.open(&mut mwindow.is_open.borrow_mut())
+				.show(ctx, |ui| {
+					create_meta_viewer(mwindow, ui, &mwindow.metadata, &tst);
+					create_image_preview(mwindow, ui, ctx);
+				});
 		}
 
 		Self::preview_files_being_dropped(ctx);
@@ -210,6 +209,9 @@ impl eframe::App for MetadataTool {
 				self.dropped_files = i.raw.dropped_files.clone();
 			}
 		});
+
+		// If we closed a window, remove it from the application
+		self.windows.retain(|w| *w.is_open.try_borrow().unwrap());
 
 		self.toasts.show(ctx)
 	}

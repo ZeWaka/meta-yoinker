@@ -5,13 +5,14 @@ use crate::{
 use egui::{text::LayoutJob, vec2, RichText, TextFormat};
 use egui_extras::RetainedImage;
 use egui_toast::{Toast, ToastKind, ToastOptions, Toasts};
+
 use std::{cell::RefCell, rc::Rc};
 
 pub struct UIWindow {
 	pub id: uuid::Uuid,
 	pub img: Option<Rc<RetainedImage>>,
 	pub metadata: Rc<ImageMetadata>,
-	pub is_open: bool,
+	pub is_open: RefCell<bool>,
 }
 
 pub fn create_image_preview(mwindow: &UIWindow, ui: &mut egui::Ui, ctx: &egui::Context) {

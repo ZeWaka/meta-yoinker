@@ -1,7 +1,7 @@
+use crate::{app::GLOB_COPIED_METADATA, MetadataTool};
+
 use egui::{Margin, RichText, Rounding, Stroke};
 use egui_toast::{Toast, ToastKind, ToastOptions, Toasts};
-
-use crate::{app::GLOB_COPIED_METADATA, MetadataTool};
 
 pub fn create_sidebar(app: &mut MetadataTool, ctx: &egui::Context) {
 	egui::SidePanel::left("side_panel").show(ctx, |ui| {
@@ -37,7 +37,6 @@ pub fn create_sidebar(app: &mut MetadataTool, ctx: &egui::Context) {
 				egui::global_dark_light_mode_buttons(ui);
 			});
 
-			//ui.add_space(10.0);
 			ui.with_layout(egui::Layout::bottom_up(egui::Align::Center), |ui| {
 				egui::Frame::default()
 					.stroke(Stroke {
