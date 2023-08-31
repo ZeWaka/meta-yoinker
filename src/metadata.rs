@@ -1,24 +1,37 @@
+use std::fmt::Display;
+
 use egui::DroppedFile;
 
 pub struct ImageMetadata {
 	pub img_metadata_raw: Option<dmi::ztxt::RawZtxtChunk>,
-	pub img_metadata_text: Option<String>,
-	pub image_info: FileInfo,
+	pub file_name: String,
 }
 
-pub struct FileInfo {
-	pub name: String,
+impl Display for ImageMetadata {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		let meta_str = self
+			.img_metadata_raw
+			.as_ref()
+			.map(|metadata| format!("{:#?}", metadata));
+		write!(
+			f,
+			"{}",
+			meta_str.unwrap_or_else(|| "No metadata".to_owned())
+		)
+	}
+}
+
+#[derive(Default)]
+pub struct CopiedMetadata {
+	pub file_name: String,
+	pub metadata: dmi::ztxt::RawZtxtChunk,
 }
 
 pub fn extract_metadata(raw_dmi: dmi::RawDmi, file: &DroppedFile) -> ImageMetadata {
+	let ztxt_metadata = raw_dmi.chunk_ztxt;
 	ImageMetadata {
-		img_metadata_raw: { raw_dmi.chunk_ztxt.clone() },
-		img_metadata_text: {
-			raw_dmi
-				.chunk_ztxt
-				.map(|metadata| format!("{:#?}", metadata))
-		},
-		image_info: {
+		img_metadata_raw: { ztxt_metadata },
+		file_name: {
 			let name_str: String;
 			if let Some(path) = &file.path {
 				if let Some(file_name_osstr) = path.file_name() {
@@ -31,7 +44,7 @@ pub fn extract_metadata(raw_dmi: dmi::RawDmi, file: &DroppedFile) -> ImageMetada
 			} else {
 				name_str = "???".to_owned();
 			};
-			FileInfo { name: name_str }
+			name_str
 		},
 	}
 }

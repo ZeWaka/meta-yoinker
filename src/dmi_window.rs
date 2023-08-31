@@ -1,6 +1,6 @@
 use crate::{
-	app::{CopiedMetadata, GLOB_COPIED_METADATA},
-	metadata::ImageMetadata,
+	app::GLOB_COPIED_METADATA,
+	metadata::{CopiedMetadata, ImageMetadata},
 };
 use egui::{text::LayoutJob, vec2, RichText, TextFormat};
 use egui_extras::RetainedImage;
@@ -75,13 +75,8 @@ pub fn create_meta_viewer(
 					);
 				};
 				egui::CollapsingHeader::new(metadata_text).show(ui, |ui| {
-					egui::ScrollArea::vertical().show(ui, |ui| match &metadata.img_metadata_text {
-						Some(metadata) => {
-							ui.code_editor(&mut metadata.to_string());
-						}
-						None => {
-							ui.label("No Metadata!");
-						}
+					egui::ScrollArea::vertical().show(ui, |ui| {
+						ui.code_editor(&mut format!("{}", metadata));
 					});
 				});
 			},
@@ -93,14 +88,14 @@ fn copy_metadata(metadata: &Rc<ImageMetadata>, toasts: &RefCell<&mut Toasts>) {
 	if let Some(raw_meta) = &metadata.img_metadata_raw {
 		let new_meta = {
 			Some(CopiedMetadata {
-				orig_file: metadata.image_info.name.clone(),
+				file_name: metadata.file_name.clone(),
 				metadata: raw_meta.clone(),
 			})
 		};
 		*GLOB_COPIED_METADATA.lock() = new_meta;
 		let mut toast_lock = toasts.borrow_mut();
 		toast_lock.add(Toast {
-			text: format!("Copied metadata for {}", metadata.image_info.name).into(),
+			text: format!("Copied metadata for {}", metadata.file_name).into(),
 			kind: ToastKind::Success,
 			options: ToastOptions::default()
 				.duration_in_seconds(2.0)

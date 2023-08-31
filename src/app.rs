@@ -1,6 +1,6 @@
 use crate::{
 	dmi_window::{create_image_preview, create_meta_viewer, UIWindow},
-	metadata::extract_metadata,
+	metadata::{extract_metadata, CopiedMetadata},
 	sidebar::create_sidebar,
 };
 use egui::{mutex::Mutex, Align2, DroppedFile, FontId, RichText, TextStyle};
@@ -17,12 +17,6 @@ pub struct MetadataTool {
 
 pub static GLOB_COPIED_METADATA: once_cell::sync::Lazy<Mutex<Option<CopiedMetadata>>> =
 	once_cell::sync::Lazy::new(|| Mutex::new(None));
-
-#[derive(Default)]
-pub struct CopiedMetadata {
-	pub orig_file: String,
-	pub metadata: dmi::ztxt::RawZtxtChunk,
-}
 
 fn configure_text_styles(ctx: &egui::Context) {
 	use egui::FontFamily::{Monospace, Proportional};
@@ -185,7 +179,7 @@ impl eframe::App for MetadataTool {
 		let tst = RefCell::new(&mut self.toasts);
 
 		for mwindow in &self.windows {
-			egui::Window::new(&mwindow.metadata.image_info.name)
+			egui::Window::new(&mwindow.metadata.file_name)
 				.id(mwindow.id.to_string().into())
 				.open(&mut mwindow.is_open.borrow_mut())
 				.show(ctx, |ui| {

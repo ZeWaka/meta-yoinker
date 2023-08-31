@@ -25,7 +25,7 @@ pub fn create_sidebar(app: &mut MetadataTool, ctx: &egui::Context) {
 			app.dropped_files.clear();
 			for window in &app.windows {
 				if window.img.is_some() {
-					ui.monospace(&window.metadata.image_info.name);
+					ui.monospace(&window.metadata.file_name);
 				}
 			}
 		}
@@ -56,7 +56,7 @@ pub fn create_sidebar(app: &mut MetadataTool, ctx: &egui::Context) {
 						let meta_g = GLOB_COPIED_METADATA.lock();
 						let meta_guard = &*meta_g;
 						if let Some(meta) = meta_guard {
-							ui.label(meta.orig_file.clone());
+							ui.label(meta.file_name.clone());
 						} else {
 							ui.label(RichText::new("None").color(egui::Color32::LIGHT_RED));
 						}
