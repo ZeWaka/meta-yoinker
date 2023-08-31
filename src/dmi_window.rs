@@ -2,7 +2,7 @@ use crate::{
 	app::{CopiedMetadata, GLOB_COPIED_METADATA},
 	metadata::ImageMetadata,
 };
-use egui::{mutex::Mutex, text::LayoutJob, vec2, RichText, TextFormat};
+use egui::{text::LayoutJob, vec2, RichText, TextFormat};
 use egui_extras::RetainedImage;
 use egui_toast::{Toast, ToastKind, ToastOptions, Toasts};
 use std::{cell::RefCell, rc::Rc};
