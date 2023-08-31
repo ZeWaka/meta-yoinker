@@ -113,8 +113,6 @@ impl MetadataTool {
 	pub fn load_files_or_err(&mut self, ui: &mut egui::Ui) {
 		if !self.dropped_files.is_empty() {
 			ui.group(|ui| {
-				ui.label("Dropped files:");
-
 				for file in &self.dropped_files {
 					if let Some(bytes) = Self::load_file_contents(file) {
 						if bytes.is_empty() {
@@ -135,7 +133,7 @@ impl MetadataTool {
 									egui::Color32::RED,
 									format!("Error loading {}: {e}", file.name),
 								);
-								return;
+								continue;
 							}
 						};
 
