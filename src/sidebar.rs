@@ -5,7 +5,11 @@ use egui_toast::{Toast, ToastKind, ToastOptions, Toasts};
 
 pub fn create_sidebar(app: &mut MetadataTool, ctx: &egui::Context) {
 	egui::SidePanel::left("side_panel").show(ctx, |ui| {
-		ui.heading("MetaYoinker 😈");
+		ui.heading(format!(
+			"{}{}",
+			"MetaYoinker",
+			egui_phosphor::regular::MAGIC_WAND,
+		));
 
 		// Load dropped files and show errors if needed
 		app.load_files_or_err(ui);

@@ -150,7 +150,8 @@ impl MetadataTool {
 										RetainedImage::from_image_bytes("img", &buffer).unwrap(),
 									))
 								},
-								metadata: Rc::new(ImageMetadata::new(raw_dmi, file)),
+								dmi: raw_dmi.clone(),
+								metadata: Rc::new(ImageMetadata::new(raw_dmi.chunk_ztxt, file)),
 								is_open: RefCell::new(true),
 							};
 							self.windows.push(new_mwin);

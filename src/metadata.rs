@@ -1,16 +1,17 @@
+use dmi::ztxt::RawZtxtChunk;
 use egui::DroppedFile;
 use std::fmt::Display;
 
 #[derive(Default, Clone)]
 pub struct ImageMetadata {
-	pub img_metadata_raw: Option<dmi::ztxt::RawZtxtChunk>,
+	pub ztxt_meta: Option<RawZtxtChunk>,
 	pub file_name: String,
 }
 
 impl ImageMetadata {
-	pub fn new(raw_dmi: dmi::RawDmi, file: &DroppedFile) -> Self {
+	pub fn new(ztxt: Option<RawZtxtChunk>, file: &DroppedFile) -> Self {
 		Self {
-			img_metadata_raw: { raw_dmi.chunk_ztxt },
+			ztxt_meta: { ztxt },
 			file_name: {
 				let name_str: String;
 				if let Some(path) = &file.path {
@@ -35,7 +36,7 @@ impl ImageMetadata {
 impl Display for ImageMetadata {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		let meta_str = self
-			.img_metadata_raw
+			.ztxt_meta
 			.as_ref()
 			.map(|metadata| format!("{:#?}", metadata));
 		write!(

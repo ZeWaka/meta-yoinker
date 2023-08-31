@@ -5,6 +5,14 @@
 
 Native/Web tool to yoink DMI metadata from files and yeet it into another file
 
+Supported platforms:
+* Windows
+* macOS
+* Linux
+* ~~Web~~ (soon)
+
+uhh i'll distribute executables soon fight me
+
 ### Testing locally
 
 Make sure you are using the latest version of stable rust by running `rustup update`.
