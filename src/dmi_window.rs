@@ -1,7 +1,4 @@
-use crate::{
-	app::GLOB_COPIED_METADATA,
-	metadata::{CopiedMetadata, ImageMetadata},
-};
+use crate::{app::GLOB_COPIED_METADATA, metadata::ImageMetadata};
 use egui::{text::LayoutJob, vec2, RichText, TextFormat};
 use egui_extras::RetainedImage;
 use egui_toast::{Toast, ToastKind, ToastOptions, Toasts};
@@ -87,9 +84,9 @@ pub fn create_meta_viewer(
 fn copy_metadata(metadata: &Rc<ImageMetadata>, toasts: &RefCell<&mut Toasts>) {
 	if let Some(raw_meta) = &metadata.img_metadata_raw {
 		let new_meta = {
-			Some(CopiedMetadata {
+			Some(ImageMetadata {
 				file_name: metadata.file_name.clone(),
-				metadata: raw_meta.clone(),
+				img_metadata_raw: Some(raw_meta.clone()),
 			})
 		};
 		*GLOB_COPIED_METADATA.lock() = new_meta;

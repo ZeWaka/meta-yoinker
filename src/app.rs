@@ -1,6 +1,6 @@
 use crate::{
 	dmi_window::{create_image_preview, create_meta_viewer, UIWindow},
-	metadata::{extract_metadata, CopiedMetadata},
+	metadata::{extract_metadata, ImageMetadata},
 	sidebar::create_sidebar,
 };
 use egui::{mutex::Mutex, Align2, DroppedFile, FontId, RichText, TextStyle};
@@ -15,7 +15,7 @@ pub struct MetadataTool {
 	pub toasts: egui_toast::Toasts,
 }
 
-pub static GLOB_COPIED_METADATA: once_cell::sync::Lazy<Mutex<Option<CopiedMetadata>>> =
+pub static GLOB_COPIED_METADATA: once_cell::sync::Lazy<Mutex<Option<ImageMetadata>>> =
 	once_cell::sync::Lazy::new(|| Mutex::new(None));
 
 fn configure_text_styles(ctx: &egui::Context) {

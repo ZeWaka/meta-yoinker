@@ -2,6 +2,7 @@ use std::fmt::Display;
 
 use egui::DroppedFile;
 
+#[derive(Default)]
 pub struct ImageMetadata {
 	pub img_metadata_raw: Option<dmi::ztxt::RawZtxtChunk>,
 	pub file_name: String,
@@ -19,12 +20,6 @@ impl Display for ImageMetadata {
 			meta_str.unwrap_or_else(|| "No metadata".to_owned())
 		)
 	}
-}
-
-#[derive(Default)]
-pub struct CopiedMetadata {
-	pub file_name: String,
-	pub metadata: dmi::ztxt::RawZtxtChunk,
 }
 
 pub fn extract_metadata(raw_dmi: dmi::RawDmi, file: &DroppedFile) -> ImageMetadata {
