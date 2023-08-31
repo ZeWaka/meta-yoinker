@@ -7,7 +7,7 @@ pub fn create_sidebar(app: &mut MetadataTool, ctx: &egui::Context) {
 	egui::SidePanel::left("side_panel").show(ctx, |ui| {
 		ui.heading("MetaYoinker 😈");
 
-		// Show dropped files (if any):
+		// Load dropped files and show errors if needed
 		app.load_files_or_err(ui);
 
 		if app.windows.is_empty() {
@@ -31,7 +31,11 @@ pub fn create_sidebar(app: &mut MetadataTool, ctx: &egui::Context) {
 		}
 
 		ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
-			ui.label("Made by ZeWaka");
+			ui.horizontal(|ui| {
+				ui.label("Made by");
+				ui.hyperlink_to("ZeWaka", "https://zewaka.webcam");
+			});
+
 			ui.horizontal(|ui| {
 				ui.hyperlink_to("GitHub", env!("CARGO_PKG_REPOSITORY"));
 				egui::global_dark_light_mode_buttons(ui);
@@ -53,16 +57,16 @@ pub fn create_sidebar(app: &mut MetadataTool, ctx: &egui::Context) {
 					.rounding(Rounding::same(2.0))
 					.inner_margin(Margin::same(6.0))
 					.show(ui, |ui| {
-						let meta_g = GLOB_COPIED_METADATA.lock();
-						let meta_guard = &*meta_g;
-						if let Some(meta) = meta_guard {
+						let meta_clipboard_guard = GLOB_COPIED_METADATA.lock();
+						let meta_clipboard = &*meta_clipboard_guard;
+						if let Some(meta) = meta_clipboard {
 							ui.label(meta.file_name.clone());
 						} else {
 							ui.label(RichText::new("None").color(egui::Color32::LIGHT_RED));
 						}
 						ui.add_space(5.0);
-						let has_meta_in_clipboard = meta_guard.is_some();
-						drop(meta_g); // Release the lock
+						let has_meta_in_clipboard = meta_clipboard.is_some();
+						drop(meta_clipboard_guard); // Release the lock
 						ui.horizontal(|ui| {
 							ui.heading("Clipboard:");
 							ui.add_enabled_ui(has_meta_in_clipboard, |ui| {

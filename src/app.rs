@@ -1,6 +1,6 @@
 use crate::{
 	dmi_window::{create_image_preview, create_meta_viewer, UIWindow},
-	metadata::{extract_metadata, ImageMetadata},
+	metadata::ImageMetadata,
 	sidebar::create_sidebar,
 };
 use egui::{mutex::Mutex, Align2, DroppedFile, FontId, RichText, TextStyle};
@@ -145,7 +145,7 @@ impl MetadataTool {
 										RetainedImage::from_image_bytes("img", &buffer).unwrap(),
 									))
 								},
-								metadata: Rc::new(extract_metadata(raw_dmi, file)),
+								metadata: Rc::new(ImageMetadata::new(raw_dmi, file)),
 								is_open: RefCell::new(true),
 							};
 							self.windows.push(new_mwin);
