@@ -6,7 +6,8 @@ use egui::{
 	mutex::Mutex, Align2, DroppedFile, FontId, Margin, RichText, Rounding, Stroke, TextStyle,
 };
 use egui_extras::RetainedImage;
-use std::{io::Cursor, rc::Rc};
+use egui_toast::{Toast, ToastKind, ToastOptions, Toasts};
+use std::{cell::RefCell, io::Cursor, rc::Rc};
 
 #[derive(Default)]
 pub struct MetadataTool {
@@ -229,7 +230,7 @@ impl MetadataTool {
 								ui.heading("Clipboard:");
 								ui.add_enabled_ui(has_meta_in_clipboard, |ui| {
 									if ui.button(RichText::new("Clear").size(20.0)).clicked() {
-										*GLOB_COPIED_METADATA.lock() = None;
+										clear_meta_clipboard(&mut self.toasts);
 									}
 								});
 							});
@@ -238,6 +239,17 @@ impl MetadataTool {
 			});
 		});
 	}
+}
+
+fn clear_meta_clipboard(toasts: &mut Toasts) {
+	toasts.add(Toast {
+		text: "Cleared clipboard".into(),
+		kind: ToastKind::Success,
+		options: ToastOptions::default()
+			.duration_in_seconds(2.0)
+			.show_progress(true),
+	});
+	*GLOB_COPIED_METADATA.lock() = None;
 }
 
 impl eframe::App for MetadataTool {
@@ -258,12 +270,15 @@ impl eframe::App for MetadataTool {
 			});
 		});
 
+		// RefCell for our taosts
+		let tst = RefCell::new(&mut self.toasts);
+
 		for mwindow in &self.windows {
 			if mwindow.is_open {
 				egui::Window::new(&mwindow.metadata.image_info.name)
 					.id(mwindow.id.to_string().into())
 					.show(ctx, |ui| {
-						create_meta_viewer(mwindow, ui, &mwindow.metadata, &mut self.toasts);
+						create_meta_viewer(mwindow, ui, &mwindow.metadata, &tst);
 						create_image_preview(mwindow, ui, ctx);
 					});
 			}

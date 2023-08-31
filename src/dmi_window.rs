@@ -2,10 +2,10 @@ use crate::{
 	app::{CopiedMetadata, GLOB_COPIED_METADATA},
 	metadata::ImageMetadata,
 };
-use egui::{text::LayoutJob, vec2, RichText, TextFormat};
+use egui::{mutex::Mutex, text::LayoutJob, vec2, RichText, TextFormat};
 use egui_extras::RetainedImage;
 use egui_toast::{Toast, ToastKind, ToastOptions, Toasts};
-use std::rc::Rc;
+use std::{cell::RefCell, rc::Rc};
 
 pub struct UIWindow {
 	pub id: uuid::Uuid,
@@ -33,7 +33,7 @@ pub fn create_meta_viewer(
 	mwindow: &UIWindow,
 	ui: &mut egui::Ui,
 	metadata: &Rc<ImageMetadata>,
-	toasts: &mut Toasts,
+	toasts: &RefCell<&mut Toasts>,
 ) {
 	egui::TopBottomPanel::bottom(format!("{}_meta", mwindow.id)).show_inside(ui, |ui| {
 		ui.allocate_ui_with_layout(
@@ -88,7 +88,7 @@ pub fn create_meta_viewer(
 	});
 }
 
-fn copy_metadata(metadata: &Rc<ImageMetadata>, toasts: &mut Toasts) {
+fn copy_metadata(metadata: &Rc<ImageMetadata>, toasts: &RefCell<&mut Toasts>) {
 	if let Some(raw_meta) = &metadata.img_metadata_raw {
 		let new_meta = {
 			Some(CopiedMetadata {
@@ -97,7 +97,8 @@ fn copy_metadata(metadata: &Rc<ImageMetadata>, toasts: &mut Toasts) {
 			})
 		};
 		*GLOB_COPIED_METADATA.lock() = new_meta;
-		toasts.add(Toast {
+		let mut toast_lock = toasts.borrow_mut();
+		toast_lock.add(Toast {
 			text: format!("Copied metadata for {}", metadata.image_info.name).into(),
 			kind: ToastKind::Success,
 			options: ToastOptions::default()
