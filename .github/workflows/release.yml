@@ -1,0 +1,102 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v[0-9]+(\\.[0-9]+)*([-\\.]\\S+)?"
+
+env:
+  # This is required to enable the web_sys clipboard API which egui_web uses
+  # https://rustwasm.github.io/wasm-bindgen/api/web_sys/struct.Clipboard.html
+  # https://rustwasm.github.io/docs/wasm-bindgen/web-sys/unstable-apis.html
+  RUSTFLAGS: --cfg=web_sys_unstable_apis
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v1
+
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: x86_64-pc-windows-msvc
+          components: rustfmt, clippy
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Clippy (all features)
+        uses: actions-rs/cargo@v1
+        with:
+          toolchain: stable
+          command: clippy
+          args: --target x86_64-pc-windows-msvc --locked -- -D warnings
+
+      - name: Rustfmt
+        uses: actions-rs/cargo@v1
+        with:
+          toolchain: stable
+          command: fmt
+          args: -- --check
+
+      - name: Build (release) (default features)
+        uses: actions-rs/cargo@v1
+        with:
+          toolchain: stable
+          command: build
+          args: --target x86_64-pc-windows-msvc --locked --release
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: Windows Build
+          path: |
+            target/x86_64-pc-windows-msvc/release/meta-yoinker.exe
+
+  build-linux:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v1
+
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: x86_64-unknown-linux-gnu
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Check
+        uses: actions-rs/cargo@v1
+        with:
+          toolchain: stable
+          command: check
+          args: --target x86_64-unknown-linux-gnu --locked
+
+      - name: Build (Debug)
+        uses: actions-rs/cargo@v1
+        with:
+          toolchain: stable
+          command: build
+          args: --target x86_64-unknown-linux-gnu --locked
+
+      - name: Run tests
+        uses: actions-rs/cargo@v1
+        with:
+          toolchain: stable
+          command: test
+          args: --target x86_64-unknown-linux-gnu --locked
+        env:
+          BYOND_BIN: /home/runner/BYOND/byond/bin
+
+      - name: Build (release)
+        uses: actions-rs/cargo@v1
+        with:
+          toolchain: stable
+          command: build
+          args: --target x86_64-unknown-linux-gnu --locked --release
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: Linux Build
+          path: |
+            target/x86_64-unknown-linux-gnu/release/meta-yoinker
