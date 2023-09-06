@@ -4,7 +4,7 @@ use crate::{
 	sidebar::create_sidebar,
 };
 use egui::{mutex::Mutex, Align2, DroppedFile, FontId, RichText, TextStyle};
-use egui_extras::RetainedImage;
+use egui_extras::{image::load_image_bytes, RetainedImage};
 
 use std::{cell::RefCell, io::Cursor, rc::Rc};
 
@@ -140,14 +140,18 @@ impl MetadataTool {
 							let new_mwin = ImageWindow {
 								id: uuid::Uuid::new_v4(),
 								img: {
-									let h = (ui.available_height() * 2.0) as u32;
-									let w = (ui.available_width() * 2.0) as u32;
+									let h = (ui.available_height() * 1.85) as u32;
+									let w = (ui.available_width() * 1.85) as u32;
 
 									i = i.resize(w, h, image::imageops::FilterType::Nearest);
 									i.write_to(&mut writer, image::ImageFormat::Png).unwrap();
 
 									Rc::new(
-										RetainedImage::from_image_bytes("img", &buffer).unwrap(),
+										RetainedImage::from_color_image(
+											"img",
+											load_image_bytes(&buffer).unwrap(),
+										)
+										.with_options(egui::TextureOptions::NEAREST),
 									)
 								},
 								dmi: raw_dmi.clone(),

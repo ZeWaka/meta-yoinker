@@ -15,7 +15,7 @@ pub struct ImageWindow {
 pub fn create_image_preview(mwindow: &ImageWindow, ui: &mut egui::Ui, ctx: &egui::Context) {
 	egui::CentralPanel::default().show_inside(ui, |ui| {
 		let img = mwindow.img.as_ref();
-		ui.image(img.texture_id(ctx), img.size_vec2() * 0.92); // right and bottom margin
+		ui.image(img.texture_id(ctx), img.size_vec2());
 	});
 }
 
