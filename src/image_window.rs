@@ -6,24 +6,16 @@ use std::{cell::RefCell, rc::Rc};
 
 pub struct ImageWindow {
 	pub id: uuid::Uuid,
-	pub img: Option<Rc<RetainedImage>>,
+	pub img: Rc<RetainedImage>,
 	pub dmi: dmi::RawDmi,
 	pub metadata: Rc<ImageMetadata>,
 	pub is_open: RefCell<bool>,
 }
 
 pub fn create_image_preview(mwindow: &ImageWindow, ui: &mut egui::Ui, ctx: &egui::Context) {
-	egui::TopBottomPanel::top(format!("{}_img", mwindow.id)).show_inside(ui, |ui| {
-		ui.allocate_ui_with_layout(
-			vec2(ui.available_width(), ui.available_height()),
-			egui::Layout::top_down(egui::Align::Center),
-			|ui| {
-				mwindow.img.as_ref().map_or_else(
-					|| unreachable!(),
-					|i| ui.image(i.texture_id(ctx), i.size_vec2() * 0.9), // display image w/ margin
-				);
-			},
-		);
+	egui::CentralPanel::default().show_inside(ui, |ui| {
+		let img = mwindow.img.as_ref();
+		ui.image(img.texture_id(ctx), img.size_vec2() * 0.92); // right and bottom margin
 	});
 }
 
@@ -127,58 +119,64 @@ fn paste_metadata(mwindow: &ImageWindow, toasts: &RefCell<&mut Toasts>) {
 	let meta_to_paste = GLOB_COPIED_METADATA.lock().clone();
 
 	if let Some(mut path) = rfd::FileDialog::new()
-		.add_filter("DM Image Files", &["dmi"])
+		.add_filter("DM Image File", &["dmi"])
 		.set_title("Download File")
 		.set_file_name(mwindow.metadata.file_name.as_str())
 		.set_directory("/")
 		.save_file()
 	{
 		path.set_extension("dmi");
-		let mut old_dmi = mwindow.dmi.clone();
-
-		old_dmi.chunk_ztxt = meta_to_paste.unwrap().ztxt_meta;
+		let mut new_dmi = mwindow.dmi.clone();
+		new_dmi.chunk_ztxt = meta_to_paste.unwrap().ztxt_meta;
 
 		let mut file = std::fs::File::create(path).unwrap();
-		old_dmi.save(&mut file).unwrap();
+		new_dmi.save(&mut file).unwrap();
+
+		let mut toast_lock = toasts.borrow_mut();
+		toast_lock.add(Toast {
+			text: format!("Downloaded {}", mwindow.metadata.file_name).into(),
+			kind: ToastKind::Success,
+			options: ToastOptions::default()
+				.duration_in_seconds(1.5)
+				.show_progress(true),
+		});
 	}
+}
+
+#[cfg(target_arch = "wasm32")]
+fn paste_metadata(mwindow: &ImageWindow, toasts: &RefCell<&mut Toasts>) {
+	// use eframe::wasm_bindgen::{prelude::Closure, JsCast, JsValue};
+
+	// let meta_to_paste = GLOB_COPIED_METADATA.lock().clone();
+
+	// // Create our file handle
+	// let newHandle =
+
+	// let writable = web_sys::FileSystemFileHandle::create_writable(1);
+
+	// let promise = js_sys::Promise::new(&mut move |res, _rej| {
+	// 	let file_reader = web_sys::FileReader::new().unwrap();
+
+	// 	let fr = file_reader.clone();
+	// 	let closure = Closure::wrap(Box::new(move || {
+	// 		res.call1(&JsValue::undefined(), &fr.result().unwrap())
+	// 			.unwrap();
+	// 	}) as Box<dyn FnMut()>);
+
+	// 	file_reader.set_onload(Some(closure.as_ref().unchecked_ref()));
+
+	// 	closure.forget();
+
+	// 	file_reader.read_as_array_buffer(&self.0).unwrap();
+	// });
+
+	// let future = wasm_bindgen_futures::JsFuture::from(promise);
+
+	// let res = future.await.unwrap();
 
 	let mut toast_lock = toasts.borrow_mut();
 	toast_lock.add(Toast {
 		text: format!("Downloaded {}", mwindow.metadata.file_name).into(),
-		kind: ToastKind::Success,
-		options: ToastOptions::default()
-			.duration_in_seconds(1.5)
-			.show_progress(true),
-	});
-}
-
-#[cfg(target_arch = "wasm32")]
-fn paste_metadata(metadata: &Rc<ImageMetadata>, toasts: &RefCell<&mut Toasts>) {
-	let meta_to_paste = GLOB_COPIED_METADATA.lock().clone();
-
-	let promise = js_sys::Promise::new(&mut move |res, _rej| {
-		let file_reader = web_sys::FileReader::new().unwrap();
-
-		let fr = file_reader.clone();
-		let closure = Closure::wrap(Box::new(move || {
-			res.call1(&JsValue::undefined(), &fr.result().unwrap())
-				.unwrap();
-		}) as Box<dyn FnMut()>);
-
-		file_reader.set_onload(Some(closure.as_ref().unchecked_ref()));
-
-		closure.forget();
-
-		file_reader.read_as_array_buffer(&self.0).unwrap();
-	});
-
-	let future = wasm_bindgen_futures::JsFuture::from(promise);
-
-	let res = future.await.unwrap();
-
-	let mut toast_lock = toasts.borrow_mut();
-	toast_lock.add(Toast {
-		text: format!("Downloaded {}", metadata.file_name).into(),
 		kind: ToastKind::Success,
 		options: ToastOptions::default()
 			.duration_in_seconds(1.5)

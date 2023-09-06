@@ -146,9 +146,9 @@ impl MetadataTool {
 									i = i.resize(w, h, image::imageops::FilterType::Nearest);
 									i.write_to(&mut writer, image::ImageFormat::Png).unwrap();
 
-									Some(Rc::new(
+									Rc::new(
 										RetainedImage::from_image_bytes("img", &buffer).unwrap(),
-									))
+									)
 								},
 								dmi: raw_dmi.clone(),
 								metadata: Rc::new(ImageMetadata::new(raw_dmi.chunk_ztxt, file)),

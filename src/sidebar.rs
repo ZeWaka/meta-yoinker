@@ -28,9 +28,7 @@ pub fn create_sidebar(app: &mut MetadataTool, ctx: &egui::Context) {
 			// Clean the dropped files list as soon as we have an image. Needed to reload a new, future image.
 			app.dropped_files.clear();
 			for window in &app.windows {
-				if window.img.is_some() {
-					ui.monospace(&window.metadata.file_name);
-				}
+				ui.monospace(&window.metadata.file_name);
 			}
 		}
 
