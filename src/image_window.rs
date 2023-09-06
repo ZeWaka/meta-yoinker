@@ -46,7 +46,7 @@ pub fn create_meta_viewer(
 					if ui
 						.button(
 							RichText::new(format!(
-								"{} {}",
+								"{}{}",
 								egui_phosphor::regular::CLIPBOARD_TEXT,
 								egui_phosphor::regular::DOWNLOAD
 							))

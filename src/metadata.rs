@@ -12,24 +12,28 @@ impl ImageMetadata {
 	pub fn new(ztxt: Option<RawZtxtChunk>, file: &DroppedFile) -> Self {
 		Self {
 			ztxt_meta: { ztxt },
-			file_name: {
-				let name_str: String;
-				if let Some(path) = &file.path {
-					// Handle Native OS file paths
-					if let Some(file_name_osstr) = path.file_name() {
-						name_str = file_name_osstr.to_string_lossy().into_owned();
-					} else {
-						name_str = "???".to_owned();
-					}
-				} else if !file.name.is_empty() {
-					// Web file paths
-					name_str = file.name.clone();
-				} else {
-					name_str = "???".to_owned();
-				};
-				name_str
-			},
+			file_name: { Self::get_file_name(file) },
 		}
+	}
+
+	fn get_file_name(file: &DroppedFile) -> String {
+		file.path.as_ref().map_or_else(
+			|| {
+				// Web file paths
+				if !file.name.is_empty() {
+					file.name.clone()
+				} else {
+					"???".to_owned()
+				}
+			},
+			|path| {
+				// OS file paths
+				path.file_name().map_or_else(
+					|| "???".to_owned(),
+					|fname_osstr| fname_osstr.to_string_lossy().into_owned(),
+				)
+			},
+		)
 	}
 }
 

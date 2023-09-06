@@ -60,7 +60,7 @@ impl MetadataTool {
 	fn preview_files_being_dropped(ctx: &egui::Context) {
 		use egui::{Color32, Id, LayerId, Order};
 
-		// Preview hovering files:
+		// Check that there's files hovering over our window
 		if ctx.input(|i| i.raw.hovered_files.is_empty()) {
 			return;
 		}
@@ -194,9 +194,9 @@ impl eframe::App for MetadataTool {
 				});
 		}
 
-		Self::preview_files_being_dropped(ctx);
-
 		create_sidebar(self, ctx);
+
+		Self::preview_files_being_dropped(ctx);
 
 		egui::CentralPanel::default().show(ctx, |ui| {
 			ui.centered_and_justified(|ui| {
@@ -204,6 +204,7 @@ impl eframe::App for MetadataTool {
 			});
 		});
 
+		// Handle dropped files
 		ctx.input(|i| {
 			if !i.raw.dropped_files.is_empty() {
 				self.dropped_files = i.raw.dropped_files.clone();
