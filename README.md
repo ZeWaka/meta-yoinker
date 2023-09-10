@@ -19,6 +19,17 @@ If you're on Linux or Mac, you will need to build it yourself. Follow the develo
 
 ## Developing
 
+This tool is written in [Rust](https://rust-lang.org/).
+
+1. Install the Rust compiler's dependencies (primarily the system linker):
+
+   * Ubuntu: `sudo apt-get install gcc-multilib`
+   * Windows (MSVC): [Build Tools for Visual Studio 2017](https://visualstudio.microsoft.com/thank-you-downloading-visual-studio/?sku=BuildTools)
+   * Windows (GNU): No action required
+
+2. Use [the Rust installer](https://rustup.rs/), or another Rust installation method.
+
+
 ### Testing locally
 
 Make sure you are using the latest version of stable rust by running `rustup update`.
@@ -32,6 +43,8 @@ On Linux you need to first run:
 On Fedora Rawhide you need to run:
 
 `dnf install clang clang-devel clang-tools-extra libxkbcommon-devel pkg-config openssl-devel libxcb-devel gtk3-devel atk fontconfig-devel`
+
+The executable will be located in the `target/release` folder.
 
 ### Web Locally
 
