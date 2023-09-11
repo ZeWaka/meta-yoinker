@@ -13,6 +13,8 @@ Supported platforms:
 
 ## Downloading
 
+Check out the web version: https://zewaka.github.io/meta-yoinker
+
 If you're on windows, download from the [latest release](https://github.com/ZeWaka/meta-yoinker/releases).
 
 If you're on Linux or Mac, you will need to build it yourself. Follow the development instructions below.
