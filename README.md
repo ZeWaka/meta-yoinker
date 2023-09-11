@@ -9,7 +9,7 @@ Supported platforms:
 * Windows
 * macOS
 * Linux
-* ~~Web~~ (soon)
+* Web
 
 ## Downloading
 

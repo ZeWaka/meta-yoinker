@@ -2,6 +2,7 @@ use crate::{app::GLOB_COPIED_METADATA, metadata::ImageMetadata};
 use egui::{text::LayoutJob, vec2, RichText, TextFormat};
 use egui_extras::RetainedImage;
 use egui_toast::{Toast, ToastKind, ToastOptions, Toasts};
+use poll_promise::Promise;
 use std::{cell::RefCell, rc::Rc};
 
 pub struct ImageWindow {
@@ -41,8 +42,8 @@ pub fn create_meta_viewer(
 					}
 				});
 
-				let has_metadata = GLOB_COPIED_METADATA.lock().is_some();
-				ui.add_enabled_ui(has_metadata, |ui| {
+				let clipboard_meta_avail = GLOB_COPIED_METADATA.lock().is_some();
+				ui.add_enabled_ui(clipboard_meta_avail, |ui| {
 					if ui
 						.button(
 							RichText::new(format!(
@@ -59,7 +60,11 @@ pub fn create_meta_viewer(
 						})
 						.clicked()
 					{
-						paste_metadata(img_win, toasts);
+						paste_metadata(
+							img_win,
+							toasts,
+							GLOB_COPIED_METADATA.lock().clone().unwrap(),
+						);
 					}
 				});
 
@@ -114,65 +119,35 @@ fn copy_metadata(metadata: &Rc<ImageMetadata>, toasts: &RefCell<&mut Toasts>) {
 	}
 }
 
-#[cfg(not(target_arch = "wasm32"))]
-fn paste_metadata(mwindow: &ImageWindow, toasts: &RefCell<&mut Toasts>) {
-	let meta_to_paste = GLOB_COPIED_METADATA.lock().clone();
+fn paste_metadata(mwindow: &ImageWindow, toasts: &RefCell<&mut Toasts>, metadata: ImageMetadata) {
+	let mut filename = mwindow.metadata.file_name.clone();
+	// pls forgive me for this thx
+	filename = filename[..filename.len() - 4].to_owned() + ".dmi";
 
-	if let Some(mut path) = rfd::FileDialog::new()
-		.add_filter("DM Image File", &["dmi"])
-		.set_title("Download File")
-		.set_file_name(mwindow.metadata.file_name.as_str())
-		.set_directory("/")
-		.save_file()
-	{
-		path.set_extension("dmi");
-		let mut new_dmi = mwindow.dmi.clone();
-		new_dmi.chunk_ztxt = meta_to_paste.unwrap().ztxt_meta;
+	let mut new_dmi = mwindow.dmi.clone();
+	new_dmi.chunk_ztxt = metadata.ztxt_meta;
 
-		let mut file = std::fs::File::create(path).unwrap();
-		new_dmi.save(&mut file).unwrap();
+	// Create buffer for the dmi to save its binary data to
+	let mut buffer = Vec::with_capacity(std::mem::size_of_val(&new_dmi));
+	new_dmi.save(&mut buffer).unwrap();
 
-		let mut toast_lock = toasts.borrow_mut();
-		toast_lock.add(Toast {
-			text: format!("Downloaded {}", mwindow.metadata.file_name).into(),
-			kind: ToastKind::Success,
-			options: ToastOptions::default()
-				.duration_in_seconds(1.5)
-				.show_progress(true),
-		});
-	}
-}
+	#[allow(unused_variables)] // Not used on web
+	let promise = Promise::spawn_local(async move {
+		if let Some(path) = rfd::AsyncFileDialog::new()
+			.add_filter("DM Image File", &["dmi"])
+			.set_title("Download DMI")
+			.set_file_name(filename)
+			.set_directory("/")
+			.save_file()
+			.await
+		{
+			path.write(buffer.as_slice()).await.unwrap();
+		}
+	});
 
-#[cfg(target_arch = "wasm32")]
-fn paste_metadata(mwindow: &ImageWindow, toasts: &RefCell<&mut Toasts>) {
-	// use eframe::wasm_bindgen::{prelude::Closure, JsCast, JsValue};
-
-	// let meta_to_paste = GLOB_COPIED_METADATA.lock().clone();
-
-	// // Create our file handle
-	// let newHandle =
-
-	// let writable = web_sys::FileSystemFileHandle::create_writable(1);
-
-	// let promise = js_sys::Promise::new(&mut move |res, _rej| {
-	// 	let file_reader = web_sys::FileReader::new().unwrap();
-
-	// 	let fr = file_reader.clone();
-	// 	let closure = Closure::wrap(Box::new(move || {
-	// 		res.call1(&JsValue::undefined(), &fr.result().unwrap())
-	// 			.unwrap();
-	// 	}) as Box<dyn FnMut()>);
-
-	// 	file_reader.set_onload(Some(closure.as_ref().unchecked_ref()));
-
-	// 	closure.forget();
-
-	// 	file_reader.read_as_array_buffer(&self.0).unwrap();
-	// });
-
-	// let future = wasm_bindgen_futures::JsFuture::from(promise);
-
-	// let res = future.await.unwrap();
+	// We do not want to block on wasm, since we're running in an async context already
+	#[cfg(not(target_arch = "wasm32"))]
+	promise.block_and_take();
 
 	let mut toast_lock = toasts.borrow_mut();
 	toast_lock.add(Toast {
