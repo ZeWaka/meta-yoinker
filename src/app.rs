@@ -185,7 +185,7 @@ impl eframe::App for MetadataTool {
 	fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
 		// For inspiration and more examples, go to https://emilk.github.io/egui
 
-		// #[cfg(not(target_arch = "wasm32"))] // no File->Quit on web pages!
+		// #[cfg(not(target_family = "wasm"))] // no File->Quit on web pages!
 		// egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
 		// 	// The top panel is often a good place for a menu bar:
 		// 	egui::menu::bar(ui, |ui| {

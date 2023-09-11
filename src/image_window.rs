@@ -146,7 +146,7 @@ fn paste_metadata(mwindow: &ImageWindow, toasts: &RefCell<&mut Toasts>, metadata
 	});
 
 	// We do not want to block on wasm, since we're running in an async context already
-	#[cfg(not(target_arch = "wasm32"))]
+	#[cfg(not(target_family = "wasm"))]
 	promise.block_and_take();
 
 	let mut toast_lock = toasts.borrow_mut();

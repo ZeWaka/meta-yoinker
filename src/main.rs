@@ -2,14 +2,18 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
 // When compiling natively:
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(not(target_family = "wasm"))]
 fn main() -> eframe::Result<()> {
 	env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
 
+	#[cfg(target_family = "windows")]
 	let native_options = eframe::NativeOptions {
 		icon_data: load_favicon(),
 		..Default::default()
 	};
+	#[cfg(not(target_family = "windows"))]
+	let native_options = eframe::NativeOptions::default();
+
 	eframe::run_native(
 		"MetaYoinker",
 		native_options,
@@ -18,7 +22,7 @@ fn main() -> eframe::Result<()> {
 }
 
 // When compiling to web using trunk:
-#[cfg(target_arch = "wasm32")]
+#[cfg(target_family = "wasm")]
 fn main() {
 	use poll_promise::Promise;
 
@@ -39,6 +43,7 @@ fn main() {
 	});
 }
 
+#[cfg(target_family = "windows")]
 fn load_favicon() -> Option<eframe::IconData> {
 	let (icon_rgba, icon_width, icon_height) = {
 		let icon = include_bytes!("../assets/icon-256.png");
