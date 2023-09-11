@@ -6,7 +6,10 @@
 fn main() -> eframe::Result<()> {
 	env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
 
-	let native_options = eframe::NativeOptions::default();
+	let native_options = eframe::NativeOptions {
+		icon_data: load_favicon(),
+		..Default::default()
+	};
 	eframe::run_native(
 		"MetaYoinker",
 		native_options,
@@ -34,4 +37,23 @@ fn main() {
 			.await
 			.expect("failed to start eframe");
 	});
+}
+
+fn load_favicon() -> Option<eframe::IconData> {
+	let (icon_rgba, icon_width, icon_height) = {
+		let icon = include_bytes!("../assets/icon-256.png");
+		let image = match image::load_from_memory(icon) {
+			Ok(i) => i.into_rgba8(),
+			Err(_) => return None,
+		};
+		let (width, height) = image.dimensions();
+		let rgba = image.into_raw();
+		(rgba, width, height)
+	};
+
+	Some(eframe::IconData {
+		rgba: icon_rgba,
+		width: icon_width,
+		height: icon_height,
+	})
 }
