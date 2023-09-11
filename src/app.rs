@@ -6,7 +6,13 @@ use crate::{
 use egui::{mutex::Mutex, Align2, DroppedFile, FontId, RichText, TextStyle};
 use egui_extras::{image::load_image_bytes, RetainedImage};
 
-use std::{cell::RefCell, io::Cursor, rc::Rc};
+use std::{
+	cell::RefCell,
+	collections::hash_map::DefaultHasher,
+	hash::{Hash, Hasher},
+	io::Cursor,
+	rc::Rc,
+};
 
 #[derive(Default)]
 pub struct MetadataTool {
@@ -111,6 +117,7 @@ impl MetadataTool {
 
 	pub fn load_files_or_err(&mut self, ui: &mut egui::Ui) {
 		if !self.dropped_files.is_empty() {
+			let mut hasher = DefaultHasher::new();
 			ui.group(|ui| {
 				for file in &self.dropped_files {
 					if let Some(bytes) = Self::load_file_contents(file) {
@@ -138,7 +145,12 @@ impl MetadataTool {
 
 						if let Ok(raw_dmi) = dmi::RawDmi::load(bytes_reader) {
 							let new_mwin = ImageWindow {
-								id: uuid::Uuid::new_v4(),
+								id: {
+									for chunk in &raw_dmi.chunks_idat {
+										chunk.data.hash(&mut hasher)
+									}
+									hasher.finish().to_string().into()
+								},
 								img: {
 									let h = (ui.available_height() * 1.85) as u32;
 									let w = (ui.available_width() * 1.85) as u32;
@@ -190,7 +202,7 @@ impl eframe::App for MetadataTool {
 
 		for mwindow in &self.windows {
 			egui::Window::new(&mwindow.metadata.file_name)
-				.id(mwindow.id.to_string().into())
+				.id(mwindow.id)
 				.open(&mut mwindow.is_open.borrow_mut())
 				.show(ctx, |ui| {
 					create_meta_viewer(mwindow, ui, &mwindow.metadata, &tst);

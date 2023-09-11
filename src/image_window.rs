@@ -6,7 +6,7 @@ use poll_promise::Promise;
 use std::{cell::RefCell, rc::Rc};
 
 pub struct ImageWindow {
-	pub id: uuid::Uuid,
+	pub id: egui::Id,
 	pub img: Rc<RetainedImage>,
 	pub dmi: dmi::RawDmi,
 	pub metadata: Rc<ImageMetadata>,
@@ -26,7 +26,7 @@ pub fn create_meta_viewer(
 	metadata: &Rc<ImageMetadata>,
 	toasts: &RefCell<&mut Toasts>,
 ) {
-	egui::TopBottomPanel::bottom(format!("{}_meta", img_win.id)).show_inside(ui, |ui| {
+	egui::TopBottomPanel::bottom(format!("{:?}_meta", img_win.id)).show_inside(ui, |ui| {
 		ui.add_space(6.0);
 		ui.allocate_ui_with_layout(
 			vec2(ui.available_width(), ui.available_height()),
