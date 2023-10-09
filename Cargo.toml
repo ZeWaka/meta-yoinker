@@ -8,21 +8,21 @@ repository = "https://github.com/ZeWaka/meta-yoinker"
 keywords = ["dmi", "metadata"]
 categories = ["development-tools", "encoding"]
 edition = "2021"
-rust-version = "1.71"
+rust-version = "1.73"
 
 
 [dependencies]
 dmi = "0.3.0"
-eframe = { version = "0.22.0", default-features = false, features = [
+eframe = { version = "0.23.0", default-features = false, features = [
 	#"accesskit",     # Make egui comptaible with screen readers. NOTE: adds a lot of dependencies.
 	"default_fonts", # Embed the default egui fonts.
 	"glow",          # Use the glow rendering backend. Alternative: "wgpu".
 	#"persistence",   # Enable restoring app state when restarting the app.
 ] }
-egui = "0.22.0"
-egui_extras = { version = "0.22.0", features = ["image"] }
-egui-phosphor = "0.2.0"
-egui-toast = "0.8.1"
+egui = "0.23.0"
+egui_extras = { version = "0.23.0", features = ["image"] }
+egui-phosphor = "0.3.0"
+egui-toast = { git = "https://github.com/urholaukkarinen/egui-toast.git", branch = "main" } # "0.8.1"
 image = { version = "0.24.7", default-features = false, features = ["png"] }
 log = "0.4"
 lazy_static = "1.4.0"

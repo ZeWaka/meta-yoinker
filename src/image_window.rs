@@ -1,22 +1,22 @@
 use crate::{app::GLOB_COPIED_METADATA, metadata::ImageMetadata};
 use egui::{text::LayoutJob, vec2, RichText, TextFormat};
-use egui_extras::RetainedImage;
 use egui_toast::{Toast, ToastKind, ToastOptions, Toasts};
 use poll_promise::Promise;
 use std::{cell::RefCell, rc::Rc};
 
 pub struct ImageWindow {
 	pub id: egui::Id,
-	pub img: Rc<RetainedImage>,
+	pub img_uri: String,
 	pub dmi: dmi::RawDmi,
 	pub metadata: Rc<ImageMetadata>,
 	pub is_open: RefCell<bool>,
 }
 
-pub fn create_image_preview(mwindow: &ImageWindow, ui: &mut egui::Ui, ctx: &egui::Context) {
+pub fn create_image_preview(mwindow: &ImageWindow, ui: &mut egui::Ui) {
 	egui::CentralPanel::default().show_inside(ui, |ui| {
-		let img = mwindow.img.as_ref();
-		ui.image(img.texture_id(ctx), img.size_vec2());
+		ui.add(
+			egui::Image::from_uri(&mwindow.img_uri).texture_options(egui::TextureOptions::NEAREST),
+		)
 	});
 }
 

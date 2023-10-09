@@ -4,7 +4,6 @@ use crate::{
 	sidebar::create_sidebar,
 };
 use egui::{mutex::Mutex, Align2, DroppedFile, FontId, RichText, TextStyle};
-use egui_extras::{image::load_image_bytes, RetainedImage};
 
 use std::{
 	cell::RefCell,
@@ -46,6 +45,8 @@ impl MetadataTool {
 		// This is also where you can customize the look and feel of egui using
 		// `cc.egui_ctx.set_visuals` and `cc.egui_ctx.set_fonts`.
 		configure_text_styles(&cc.egui_ctx);
+
+		egui_extras::install_image_loaders(&cc.egui_ctx);
 
 		let mut fonts = egui::FontDefinitions::default();
 		egui_phosphor::add_to_fonts(&mut fonts, egui_phosphor::Variant::Regular);
@@ -144,27 +145,23 @@ impl MetadataTool {
 						};
 
 						if let Ok(raw_dmi) = dmi::RawDmi::load(bytes_reader) {
+							for chunk in &raw_dmi.chunks_idat {
+								chunk.data.hash(&mut hasher)
+							}
+							let uri = "bytes://".to_owned() + &hasher.finish().to_string();
+
 							let new_mwin = ImageWindow {
-								id: {
-									for chunk in &raw_dmi.chunks_idat {
-										chunk.data.hash(&mut hasher)
-									}
-									hasher.finish().to_string().into()
-								},
-								img: {
+								id: { uri.clone().into() },
+								img_uri: {
 									let h = (ui.available_height() * 1.85) as u32;
 									let w = (ui.available_width() * 1.85) as u32;
 
 									i = i.resize(w, h, image::imageops::FilterType::Nearest);
 									i.write_to(&mut writer, image::ImageFormat::Png).unwrap();
 
-									Rc::new(
-										RetainedImage::from_color_image(
-											"img",
-											load_image_bytes(&buffer).unwrap(),
-										)
-										.with_options(egui::TextureOptions::NEAREST),
-									)
+									ui.ctx().include_bytes(uri.clone(), buffer);
+
+									uri
 								},
 								dmi: raw_dmi.clone(),
 								metadata: Rc::new(ImageMetadata::new(raw_dmi.chunk_ztxt, file)),
@@ -206,7 +203,7 @@ impl eframe::App for MetadataTool {
 				.open(&mut mwindow.is_open.borrow_mut())
 				.show(ctx, |ui| {
 					create_meta_viewer(mwindow, ui, &mwindow.metadata, &tst);
-					create_image_preview(mwindow, ui, ctx);
+					create_image_preview(mwindow, ui);
 				});
 		}
 
